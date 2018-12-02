@@ -37,10 +37,6 @@ const fakeTestSuite: TestSuiteInfo = {
 	]
 };
 
-export function loadFakeTests(): Promise<TestSuiteInfo> {
-	return Promise.resolve<TestSuiteInfo>(fakeTestSuite);
-}
-
 export async function runFakeTests(
 	tests: string[],
 	testStatesEmitter: vscode.EventEmitter<TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent>

@@ -9,7 +9,11 @@ import {
   TestSuiteEvent,
 } from "vscode-test-adapter-api";
 import { Log } from "vscode-test-adapter-util";
-import { loadFakeTests, runFakeTests } from "./fakeTests";
+import { runFakeTests } from "./fakeTests";
+import {
+  mapJestTotalResultToTestSuiteInfo,
+} from "./helpers/mapJestToTestAdapter";
+import JestManager from "./JestManager";
 
 interface IDiposable {
   dispose(): void;
@@ -21,7 +25,7 @@ type TestStateCompatibleEvent = TestRunStartedEvent | TestRunFinishedEvent | Tes
  * This class is intended as a starting point for implementing a "real" TestAdapter.
  * The file `README.md` contains further instructions.
  */
-export class ExampleAdapter implements TestAdapter {
+export default class JestTestAdapter implements TestAdapter {
 
   private disposables: IDiposable[] = [];
 
@@ -60,9 +64,11 @@ export class ExampleAdapter implements TestAdapter {
 
     this.testsEmitter.fire({ type: "started" } as TestLoadStartedEvent);
 
-    const loadedTests = await loadFakeTests();
+    const jest = new JestManager(this.workspace);
+    const jestResults = await jest.loadTests();
+    const suite = mapJestTotalResultToTestSuiteInfo(jestResults, this.workspace.uri.fsPath);
 
-    this.testsEmitter.fire({ type: "finished", suite: loadedTests } as TestLoadFinishedEvent);
+    this.testsEmitter.fire({ type: "finished", suite } as TestLoadFinishedEvent);
 
   }
 

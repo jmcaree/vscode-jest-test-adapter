@@ -1,7 +1,9 @@
 {
   "compilerOptions": {
     "target": "es2016",
-    "lib": [ "es2016" ],
+    "lib": [
+      "es2016"
+    ],
     "module": "commonjs",
     "outDir": "out",
     "importHelpers": true,
@@ -13,7 +15,7 @@
     "skipLibCheck": true
   },
   "include": [
-    "src/main.ts"
+    "src/main.ts",
+    "@types/**/*",
   ]
 }
-  
