@@ -34,14 +34,14 @@
   },
   "dependencies": {
     "tslib": "^1.9.3",
-    "vscode-test-adapter-api": "^1.0.1",
-    "vscode-test-adapter-util": "^0.5.0"
+    "vscode-test-adapter-api": "^1.1.0",
+    "vscode-test-adapter-util": "^0.5.1"
   },
   "devDependencies": {
     "tslint": "^5.11.0",
-    "typescript": "^3.0.3",
-    "vsce": "^1.47.0",
-    "vscode": "^1.1.21"
+    "typescript": "^3.2.1",
+    "vsce": "^1.53.2",
+    "vscode": "^1.1.22"
   },
   "engines": {
     "vscode": "^1.23.0"
