@@ -13,6 +13,7 @@ import { ITestFilter } from "./types";
 export default class JestManager {
 
   private readonly projectWorkspace: ProjectWorkspace;
+  private readonly activeRunners: Set<Runner> = new Set<Runner>();
 
   constructor(
     public readonly workspace: WorkspaceFolder,
@@ -20,23 +21,25 @@ export default class JestManager {
     this.projectWorkspace = this.initProjectWorkspace();
   }
 
-  public loadTests(): Promise<JestTotalResults> {
+  public closeAllActiveProcesses(): void {
+    [...this.activeRunners].forEach((r) => {
+      r.closeProcess();
+    });
+    this.activeRunners.clear();
+  }
+
+  public loadTests(): Promise<JestTotalResults | null> {
     return this.runTests();
   }
 
-  public async runTests(testFilter?: ITestFilter | null): Promise<JestTotalResults> {
-    return new Promise<JestTotalResults>((resolve, reject) => {
+  public async runTests(testFilter?: ITestFilter | null): Promise<JestTotalResults | null> {
+    return new Promise<JestTotalResults | null>((resolve, reject) => {
       const runner = this.createRunner(testFilter);
       runner
         .once("executableJSON", (data: JestTotalResults) => resolve(data))
         .once("exception", (result) => reject(result))
-        .once("terminalError", (result) => reject(result));
-      // // tslint:disable-next-line:no-console
-      // .on("executableStdErr", (x: Buffer) => console.log(x.toString()))
-      // // tslint:disable-next-line:no-console
-      // .on("executableOutput", (x) => console.log(x))
-      // // tslint:disable-next-line:no-console
-      // .on("debuggerProcessExit", () => console.log("debuggerProcessExit"));
+        .once("terminalError", (result) => reject(result))
+        .once("debuggerProcessExit", () => resolve(null));
       runner.start(false);
     });
   }
@@ -49,7 +52,14 @@ export default class JestManager {
       ...(testFilter || {}),
     };
 
-    return new Runner(this.projectWorkspace, options);
+    const runner = new Runner(this.projectWorkspace, options);
+    this.activeRunners.add(runner);
+    return runner
+      // // tslint:disable-next-line:no-console
+      // .on("executableStdErr", (x: Buffer) => console.log(x.toString()))
+      // // tslint:disable-next-line:no-console
+      // .on("executableOutput", (x) => console.log(x))
+      .once("debuggerProcessExit", () => this.activeRunners.delete(runner));
   }
 
   private initProjectWorkspace(): ProjectWorkspace {
