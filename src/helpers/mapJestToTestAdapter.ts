@@ -1,4 +1,3 @@
-
 import {
   JestAssertionResults,
   JestFileResults,
@@ -8,6 +7,8 @@ import {
   TestInfo,
   TestSuiteInfo,
 } from "vscode-test-adapter-api";
+import { TEST_ID_SEPARATOR } from "../constants";
+import { ITestFilter } from "../types";
 import escapeRegExp from "./escapeRegExp";
 
 export function mapJestTotalResultToTestSuiteInfo(result: JestTotalResults, workDir: string): TestSuiteInfo {
@@ -25,7 +26,7 @@ export function mapJestFileResultToTestSuiteInfo(result: JestFileResults, workDi
     .reduce((testTree, testResult) => {
       const target = (testResult.ancestorTitles as string[]).reduce((innerTree, ancestorTitle, i, a) => {
         const fullName = a.slice(0, i + 1).join(" ");
-        const id = `^${escapeRegExp(fullName)}`;
+        const id = `${escapeRegExp(result.name)}${TEST_ID_SEPARATOR}^${escapeRegExp(fullName)}`;
         let next = innerTree.find((x) => x.id === id);
         if (next) {
           return (next as TestSuiteInfo).children;
@@ -63,13 +64,32 @@ export function mapJestFileResultToTestSuiteInfo(result: JestFileResults, workDi
 export function mapJestAssertionToTestInfo(result: JestAssertionResults, file: string): TestInfo {
   return {
     file,
-    id: mapJestAssertionToId(result),
+    id: `${escapeRegExp(file)}${TEST_ID_SEPARATOR}${mapJestAssertionToId(result)}`,
     label: result.title,
     type: "test",
   };
 }
 
 export function mapJestAssertionToId(result: JestAssertionResults): string {
-  const fullName = (result.ancestorTitles || []).concat([result.title]).join(" ");
-  return `^${escapeRegExp(fullName)}$`;
+  return `^${escapeRegExp(result.fullName)}$`;
+}
+
+export function mapTestIdsToTestFilter(tests: string[]): ITestFilter | null {
+  if (tests[0] && tests[0] === "root") {
+    return null;
+  }
+
+  // Test matching is done by creating a regular expression out of the specified test IDs
+  if (tests[0].includes(TEST_ID_SEPARATOR)) {
+    // Test filter is a name
+    return {
+      testFileNamePattern: `"(${tests.map((t) => t.split(TEST_ID_SEPARATOR)[0]).join("|")})"`,
+      testNamePattern: `"(${tests.map((t) => t.split(TEST_ID_SEPARATOR)[1]).join("|")})"`,
+    };
+  } else {
+    // Test filter is a file path
+    return {
+      testFileNamePattern: `"(${tests.join("|")})"`,
+    };
+  }
 }

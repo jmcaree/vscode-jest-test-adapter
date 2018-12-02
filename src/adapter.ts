@@ -9,9 +9,11 @@ import {
   TestSuiteEvent,
 } from "vscode-test-adapter-api";
 import { Log } from "vscode-test-adapter-util";
-import { runFakeTests } from "./fakeTests";
 import {
+  mapJestAssertionToTestInfo,
+  mapJestFileResultToTestSuiteInfo,
   mapJestTotalResultToTestSuiteInfo,
+  mapTestIdsToTestFilter,
 } from "./helpers/mapJestToTestAdapter";
 import JestManager from "./JestManager";
 
@@ -21,10 +23,6 @@ interface IDiposable {
 
 type TestStateCompatibleEvent = TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent;
 
-/**
- * This class is intended as a starting point for implementing a "real" TestAdapter.
- * The file `README.md` contains further instructions.
- */
 export default class JestTestAdapter implements TestAdapter {
 
   private disposables: IDiposable[] = [];
@@ -50,7 +48,7 @@ export default class JestTestAdapter implements TestAdapter {
     private readonly log: Log,
   ) {
 
-    this.log.info("Initializing example adapter");
+    this.log.info("Initializing Jest adapter");
 
     this.disposables.push(this.testsEmitter);
     this.disposables.push(this.testStatesEmitter);
@@ -60,28 +58,61 @@ export default class JestTestAdapter implements TestAdapter {
 
   public async load(): Promise<void> {
 
-    this.log.info("Loading example tests");
+    this.log.info("Loading Jest tests");
 
-    this.testsEmitter.fire({ type: "started" } as TestLoadStartedEvent);
+    this.testsEmitter.fire({
+      type: "started",
+    } as TestLoadStartedEvent);
 
     const jest = new JestManager(this.workspace);
-    const jestResults = await jest.loadTests();
-    const suite = mapJestTotalResultToTestSuiteInfo(jestResults, this.workspace.uri.fsPath);
+    const loadedTests = await jest.loadTests();
+    const suite = mapJestTotalResultToTestSuiteInfo(loadedTests, this.workspace.uri.fsPath);
 
-    this.testsEmitter.fire({ type: "finished", suite } as TestLoadFinishedEvent);
+    this.testsEmitter.fire({
+      suite,
+      type: "finished",
+    } as TestLoadFinishedEvent);
 
   }
 
   public async run(tests: string[]): Promise<void> {
 
-    this.log.info(`Running example tests ${JSON.stringify(tests)}`);
+    this.log.info(`Running Jest tests ${JSON.stringify(tests)}`);
 
-    this.testStatesEmitter.fire({ type: "started", tests } as TestRunStartedEvent);
+    this.testStatesEmitter.fire({
+      tests,
+      type: "started",
+    } as TestRunStartedEvent);
 
-    // in a "real" TestAdapter this would start a test run in a child process
-    await runFakeTests(tests, this.testStatesEmitter);
+    const jest = new JestManager(this.workspace);
+    const testFilter = mapTestIdsToTestFilter(tests);
+    const jestResults = await jest.runTests(testFilter);
 
-    this.testStatesEmitter.fire({ type: "finished" } as TestRunFinishedEvent);
+    jestResults.testResults.forEach((fileResult) => {
+      this.testStatesEmitter.fire({
+        state: "running",
+        suite: mapJestFileResultToTestSuiteInfo(fileResult, this.workspace.uri.fsPath),
+        type: "suite",
+      } as TestSuiteEvent);
+
+      fileResult.assertionResults.forEach((assertionResult) => {
+        this.testStatesEmitter.fire({
+          state: assertionResult.status,
+          test: mapJestAssertionToTestInfo(assertionResult, fileResult.name),
+          type: "test",
+        } as TestEvent);
+      });
+
+      this.testStatesEmitter.fire({
+        state: "completed",
+        suite: mapJestFileResultToTestSuiteInfo(fileResult, this.workspace.uri.fsPath),
+        type: "suite",
+      } as TestSuiteEvent);
+    });
+
+    this.testStatesEmitter.fire({
+      type: "finished",
+    } as TestRunFinishedEvent);
 
   }
 

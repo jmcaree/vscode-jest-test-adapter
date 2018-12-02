@@ -8,6 +8,7 @@ import { platform } from "os";
 import { WorkspaceFolder } from "vscode";
 import pathToConfig from "./helpers/pathToConfig";
 import pathToJest from "./helpers/pathToJest";
+import { ITestFilter } from "./types";
 
 export default class JestManager {
 
@@ -20,37 +21,33 @@ export default class JestManager {
   }
 
   public loadTests(): Promise<JestTotalResults> {
-    return this.runJest();
+    return this.runTests();
   }
 
-  private async runJest(tests: string[] | null = null): Promise<JestTotalResults> {
+  public async runTests(testFilter?: ITestFilter | null): Promise<JestTotalResults> {
     return new Promise<JestTotalResults>((resolve, reject) => {
-      const runner = this.createRunner(tests);
+      const runner = this.createRunner(testFilter);
       runner
         .once("executableJSON", (data: JestTotalResults) => resolve(data))
         .once("exception", (result) => reject(result))
         .once("terminalError", (result) => reject(result));
+      // // tslint:disable-next-line:no-console
+      // .on("executableStdErr", (x: Buffer) => console.log(x.toString()))
+      // // tslint:disable-next-line:no-console
+      // .on("executableOutput", (x) => console.log(x))
+      // // tslint:disable-next-line:no-console
+      // .on("debuggerProcessExit", () => console.log("debuggerProcessExit"));
       runner.start(false);
     });
   }
 
-  private createRunner(tests: string[] | null = null): Runner {
+  private createRunner(testFilter?: ITestFilter | null): Runner {
     const useShell = platform() === "win32";
 
     const options: Options = {
       shell: useShell,
+      ...(testFilter || {}),
     };
-
-    if (tests) {
-      // Test matching is done by creating a regular expression out of the specified test IDs
-      if (tests[0] && tests[0].startsWith("^")) {
-        // Test filter is a name
-        options.testNamePattern = `"(${tests.join("|")})"`;
-      } else {
-        // Test filter is a file path
-        options.testFileNamePattern = `"(${tests.join("|")})"`;
-      }
-    }
 
     return new Runner(this.projectWorkspace, options);
   }
