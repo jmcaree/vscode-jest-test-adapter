@@ -1,7 +1,7 @@
 {
-  "name": "vscode-example-test-adapter",
-  "displayName": "Example Test Explorer",
-  "description": "Run your Example tests in the Sidebar of Visual Studio Code",
+  "name": "vscode-jest-test-adapter",
+  "displayName": "Jest Test Explorer",
+  "description": "Run your Jest tests in the Sidebar of Visual Studio Code",
   "author": "Tyler Benfield <rtbenfield@gmail.com>",
   "publisher": "rtbenfield",
   "version": "0.0.1",
@@ -56,14 +56,14 @@
   "contributes": {
     "configuration": {
       "type": "object",
-      "title": "Example Test Explorer configuration",
+      "title": "Jest Test Explorer configuration",
       "properties": {
-        "exampleExplorer.logpanel": {
+        "jestTestExplorer.logpanel": {
           "description": "write diagnotic logs to an output panel",
           "type": "boolean",
           "scope": "resource"
         },
-        "exampleExplorer.logfile": {
+        "jestTestExplorer.logfile": {
           "description": "write diagnostic logs to the given file",
           "type": "string",
           "scope": "resource"

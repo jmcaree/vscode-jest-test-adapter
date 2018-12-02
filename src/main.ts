@@ -8,8 +8,8 @@ export async function activate(context: vscode.ExtensionContext) {
   const workspaceFolder = (vscode.workspace.workspaceFolders || [])[0];
 
   // create a simple logger that can be configured with the configuration variables
-  // `exampleExplorer.logpanel` and `exampleExplorer.logfile`
-  const log = new Log("exampleExplorer", workspaceFolder, "Example Explorer Log");
+  // `jestTestExplorer.logpanel` and `jestTestExplorer.logfile`
+  const log = new Log("jestTestExplorer", workspaceFolder, "Jest Test Explorer Log");
   context.subscriptions.push(log);
 
   // get the Test Explorer extension
@@ -20,7 +20,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
     const testHub = testExplorerExtension.exports;
 
-    // this will register an ExampleTestAdapter for each WorkspaceFolder
+    // this will register a JestTestAdapter for each WorkspaceFolder
     context.subscriptions.push(new TestAdapterRegistrar(
       testHub,
       (wf) => new JestTestAdapter(wf, log),
