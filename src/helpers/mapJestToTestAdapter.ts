@@ -66,6 +66,7 @@ export function mapJestAssertionToTestInfo(result: JestAssertionResults, file: s
     file,
     id: `${escapeRegExp(file)}${TEST_ID_SEPARATOR}${mapJestAssertionToId(result)}`,
     label: result.title,
+    line: result.location ? result.location.line : undefined,
     type: "test",
   };
 }

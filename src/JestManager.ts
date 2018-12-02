@@ -4,6 +4,7 @@ import {
   ProjectWorkspace,
   Runner,
 } from "jest-editor-support";
+import { createProcess } from "jest-editor-support/build/Process";
 import { platform } from "os";
 import { WorkspaceFolder } from "vscode";
 import pathToConfig from "./helpers/pathToConfig";
@@ -48,6 +49,10 @@ export default class JestManager {
     const useShell = platform() === "win32";
 
     const options: Options = {
+      createProcess: (workspace, args, spawnOptions) => {
+        args.push("--testLocationInResults");
+        return createProcess(workspace, args, spawnOptions);
+      },
       shell: useShell,
       ...(testFilter || {}),
     };
