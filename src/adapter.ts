@@ -117,9 +117,32 @@ export default class JestTestAdapter implements TestAdapter {
   }
 
   public async debug(tests: string[]): Promise<void> {
-    // in a "real" TestAdapter this would start a test run in a child process and attach the debugger to it
-    this.log.warn("debug() not implemented yet");
-    throw new Error("Method not implemented.");
+    const args = ["--runInBand"];
+    const testFilter = mapTestIdsToTestFilter(tests);
+    if (testFilter) {
+      if (testFilter.testFileNamePattern) {
+        args.push("--testPathPattern");
+        args.push(testFilter.testFileNamePattern);
+      }
+
+      if (testFilter.testNamePattern) {
+        args.push("--testNamePattern");
+        args.push(testFilter.testNamePattern);
+      }
+    }
+
+    const debugConfiguration: vscode.DebugConfiguration = {
+      args,
+      console: "integratedTerminal",
+      cwd: "${workspaceFolder}",
+      internalConsoleOptions: "neverOpen",
+      name: "vscode-jest-test-adapter",
+      program: "${workspaceFolder}/node_modules/jest/bin/jest",
+      request: "launch",
+      type: "node",
+    };
+
+    await vscode.debug.startDebugging(this.workspace, debugConfiguration);
   }
 
   public cancel(): void {
