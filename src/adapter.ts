@@ -10,6 +10,7 @@ import {
 } from "vscode-test-adapter-api";
 import { Log } from "vscode-test-adapter-util";
 import {
+  mapJestAssertionToTestDecorations,
   mapJestAssertionToTestInfo,
   mapJestFileResultToTestSuiteInfo,
   mapJestTotalResultToTestSuiteInfo,
@@ -104,6 +105,7 @@ export default class JestTestAdapter implements TestAdapter {
 
         fileResult.assertionResults.forEach((assertionResult) => {
           this.testStatesEmitter.fire({
+            decorations: mapJestAssertionToTestDecorations(assertionResult),
             state: assertionResult.status,
             test: mapJestAssertionToTestInfo(assertionResult, fileResult.name),
             type: "test",

@@ -4,6 +4,7 @@ import {
   JestTotalResults,
 } from "jest-editor-support";
 import {
+  TestDecoration,
   TestInfo,
   TestSuiteInfo,
 } from "vscode-test-adapter-api";
@@ -59,6 +60,17 @@ export function mapJestFileResultToTestSuiteInfo(result: JestFileResults, workDi
     label: result.name.replace(new RegExp(escapeRegExp(workDir), "ig"), ""),
     type: "suite",
   };
+}
+
+export function mapJestAssertionToTestDecorations(result: JestAssertionResults): TestDecoration[] {
+  if (result.location && result.failureMessages) {
+    const line = result.location.line;
+    return result.failureMessages.map<TestDecoration>((message) => ({
+      line,
+      message: message.split("\n")[0],
+    }));
+  }
+  return [];
 }
 
 export function mapJestAssertionToTestInfo(result: JestAssertionResults, file: string): TestInfo {
