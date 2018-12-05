@@ -3,13 +3,13 @@ import {
   Options,
   ProjectWorkspace,
   Runner,
+  TestReconciler,
 } from "jest-editor-support";
-import { createProcess } from "jest-editor-support/build/Process";
 import { platform } from "os";
 import { WorkspaceFolder } from "vscode";
 import pathToConfig from "./helpers/pathToConfig";
 import pathToJest from "./helpers/pathToJest";
-import { ITestFilter } from "./types";
+import { IJestResponse, ITestFilter } from "./types";
 
 export default class JestManager {
 
@@ -29,12 +29,12 @@ export default class JestManager {
     this.activeRunners.clear();
   }
 
-  public loadTests(): Promise<JestTotalResults | null> {
+  public loadTests(): Promise<IJestResponse | null> {
     return this.runTests();
   }
 
-  public async runTests(testFilter?: ITestFilter | null): Promise<JestTotalResults | null> {
-    return new Promise<JestTotalResults | null>((resolve, reject) => {
+  public async runTests(testFilter?: ITestFilter | null): Promise<IJestResponse | null> {
+    const results = await new Promise<JestTotalResults | null>((resolve, reject) => {
       const runner = this.createRunner(testFilter);
       runner
         .once("executableJSON", (data: JestTotalResults) => resolve(data))
@@ -43,16 +43,23 @@ export default class JestManager {
         .once("debuggerProcessExit", () => resolve(null));
       runner.start(false);
     });
+    if (!results) {
+      return null;
+    }
+
+    const reconciler = new TestReconciler();
+    reconciler.updateFileWithJestStatus(results);
+
+    return {
+      reconciler,
+      results,
+    };
   }
 
   private createRunner(testFilter?: ITestFilter | null): Runner {
     const useShell = platform() === "win32";
 
     const options: Options = {
-      createProcess: (workspace, args, spawnOptions) => {
-        args.push("--testLocationInResults");
-        return createProcess(workspace, args, spawnOptions);
-      },
       shell: useShell,
       ...(testFilter || {}),
     };

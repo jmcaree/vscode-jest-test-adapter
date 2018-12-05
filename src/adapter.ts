@@ -13,7 +13,7 @@ import {
   mapJestAssertionToTestDecorations,
   mapJestAssertionToTestInfo,
   mapJestFileResultToTestSuiteInfo,
-  mapJestTotalResultToTestSuiteInfo,
+  mapJestResponseToTestSuiteInfo,
   mapTestIdsToTestFilter,
 } from "./helpers/mapJestToTestAdapter";
 import JestManager from "./JestManager";
@@ -70,7 +70,7 @@ export default class JestTestAdapter implements TestAdapter {
 
     const loadedTests = await this.jestManager.loadTests();
     if (loadedTests) {
-      const suite = mapJestTotalResultToTestSuiteInfo(loadedTests, this.workspace.uri.fsPath);
+      const suite = mapJestResponseToTestSuiteInfo(loadedTests, this.workspace.uri.fsPath);
       this.testsEmitter.fire({
         suite,
         type: "finished",
@@ -93,10 +93,11 @@ export default class JestTestAdapter implements TestAdapter {
     } as TestRunStartedEvent);
 
     const testFilter = mapTestIdsToTestFilter(tests);
-    const jestResults = await this.jestManager.runTests(testFilter);
+    const jestResponse = await this.jestManager.runTests(testFilter);
 
-    if (jestResults) {
-      jestResults.testResults.forEach((fileResult) => {
+    if (jestResponse) {
+      const { reconciler, results } = jestResponse;
+      results.testResults.forEach((fileResult) => {
         this.testStatesEmitter.fire({
           state: "running",
           suite: mapJestFileResultToTestSuiteInfo(fileResult, this.workspace.uri.fsPath),
@@ -105,7 +106,7 @@ export default class JestTestAdapter implements TestAdapter {
 
         fileResult.assertionResults.forEach((assertionResult) => {
           this.testStatesEmitter.fire({
-            decorations: mapJestAssertionToTestDecorations(assertionResult),
+            decorations: mapJestAssertionToTestDecorations(assertionResult, fileResult.name, reconciler),
             state: assertionResult.status,
             test: mapJestAssertionToTestInfo(assertionResult, fileResult.name),
             type: "test",
