@@ -16,11 +16,13 @@ import {
   mapJestResponseToTestSuiteInfo,
   mapTestIdsToTestFilter,
 } from "./helpers/mapJestToTestAdapter";
-import JestManager from "./JestManager";
+import JestManager, { IJestManagerOptions } from "./JestManager";
 
 interface IDiposable {
   dispose(): void;
 }
+
+export type IJestTestAdapterOptions = IJestManagerOptions;
 
 type TestStateCompatibleEvent = TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent;
 
@@ -48,11 +50,12 @@ export default class JestTestAdapter implements TestAdapter {
   constructor(
     public readonly workspace: vscode.WorkspaceFolder,
     private readonly log: Log,
+    options: IJestTestAdapterOptions,
   ) {
 
     this.log.info("Initializing Jest adapter");
 
-    this.jestManager = new JestManager(workspace);
+    this.jestManager = new JestManager(workspace, options);
 
     this.disposables.push(this.testsEmitter);
     this.disposables.push(this.testStatesEmitter);

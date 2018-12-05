@@ -1,7 +1,24 @@
 import * as vscode from "vscode";
 import { testExplorerExtensionId, TestHub } from "vscode-test-adapter-api";
 import { Log, TestAdapterRegistrar } from "vscode-test-adapter-util";
-import JestTestAdapter from "./adapter";
+import JestTestAdapter, { IJestTestAdapterOptions } from "./adapter";
+import pathToConfigHelper from "./helpers/pathToConfig";
+import pathToJestHelper from "./helpers/pathToJest";
+
+function getJestAdapterOptions(): IJestTestAdapterOptions {
+  const pathToJest = (w: vscode.WorkspaceFolder) => {
+    return vscode.workspace.getConfiguration("jestTestExplorer").get<string>("pathToJest")
+      || pathToJestHelper(w);
+  };
+  const pathToConfig = () => {
+    return vscode.workspace.getConfiguration("jestTestExplorer").get<string>("pathToJestConfig")
+      || pathToConfigHelper();
+  };
+  return {
+    pathToConfig,
+    pathToJest,
+  };
+}
 
 export async function activate(context: vscode.ExtensionContext) {
 
@@ -20,10 +37,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
     const testHub = testExplorerExtension.exports;
 
+    const jestAdapterOptions = getJestAdapterOptions();
+
     // this will register a JestTestAdapter for each WorkspaceFolder
     context.subscriptions.push(new TestAdapterRegistrar(
       testHub,
-      (wf) => new JestTestAdapter(wf, log),
+      (wf) => new JestTestAdapter(wf, log, jestAdapterOptions),
       log,
     ));
   }

@@ -7,19 +7,21 @@ import {
 } from "jest-editor-support";
 import { platform } from "os";
 import { WorkspaceFolder } from "vscode";
-import pathToConfig from "./helpers/pathToConfig";
-import pathToJest from "./helpers/pathToJest";
 import { IJestResponse, ITestFilter } from "./types";
+
+export interface IJestManagerOptions {
+  pathToConfig: (workspaceFolder: WorkspaceFolder) => string;
+  pathToJest: (workspaceFolder: WorkspaceFolder) => string;
+}
 
 export default class JestManager {
 
-  private readonly projectWorkspace: ProjectWorkspace;
   private readonly activeRunners: Set<Runner> = new Set<Runner>();
 
   constructor(
     public readonly workspace: WorkspaceFolder,
+    private readonly options: IJestManagerOptions,
   ) {
-    this.projectWorkspace = this.initProjectWorkspace();
   }
 
   public closeAllActiveProcesses(): void {
@@ -64,7 +66,8 @@ export default class JestManager {
       ...(testFilter || {}),
     };
 
-    const runner = new Runner(this.projectWorkspace, options);
+    const projectWorkspace = this.initProjectWorkspace();
+    const runner = new Runner(projectWorkspace, options);
     this.activeRunners.add(runner);
     return runner
       // // tslint:disable-next-line:no-console
@@ -75,8 +78,8 @@ export default class JestManager {
   }
 
   private initProjectWorkspace(): ProjectWorkspace {
-    const configPath = pathToConfig();
-    const jestPath = pathToJest(this.workspace);
+    const configPath = this.options.pathToConfig(this.workspace);
+    const jestPath = this.options.pathToJest(this.workspace);
     return new ProjectWorkspace(
       this.workspace.uri.fsPath,
       jestPath,

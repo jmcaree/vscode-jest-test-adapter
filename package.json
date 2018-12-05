@@ -59,14 +59,26 @@
       "title": "Jest Test Explorer configuration",
       "properties": {
         "jestTestExplorer.logpanel": {
-          "description": "write diagnotic logs to an output panel",
-          "type": "boolean",
-          "scope": "resource"
+          "description": "Write diagnotic logs to an output panel.",
+          "scope": "resource",
+          "title": "Log Panel",
+          "type": "boolean"
         },
         "jestTestExplorer.logfile": {
-          "description": "write diagnostic logs to the given file",
-          "type": "string",
-          "scope": "resource"
+          "description": "Write diagnostic logs to the given file.",
+          "scope": "resource",
+          "title": "Log File",
+          "type": "string"
+        },
+        "jestTestExplorer.pathToJest": {
+          "description": "Override the path to the Jest executable. The default behavior is to attempt to detect common configurations.",
+          "scope": "resource",
+          "type": "string"
+        },
+        "jestTestExplorer.pathToJestConfig": {
+          "description": "Override the path to the Jest config file. The default behavior is to attempt to detect common configurations.",
+          "scope": "resource",
+          "type": "string"
         }
       }
     }
