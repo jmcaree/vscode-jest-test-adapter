@@ -5,7 +5,7 @@
   "icon": "icon.png",
   "author": "Tyler Benfield <rtbenfield@gmail.com>",
   "publisher": "rtbenfield",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "preview": true,
   "license": "MIT",
   "homepage": "https://github.com/rtbenfield/vscode-jest-test-adapter",
@@ -39,13 +39,13 @@
     "jest-editor-support": "^23.6.0",
     "tslib": "^1.9.3",
     "vscode-test-adapter-api": "^1.1.0",
-    "vscode-test-adapter-util": "^0.5.1"
+    "vscode-test-adapter-util": "^0.6.0"
   },
   "devDependencies": {
-    "tslint": "^5.11.0",
-    "typescript": "^3.2.1",
-    "vsce": "^1.53.2",
-    "vscode": "^1.1.22"
+    "tslint": "^5.12.0",
+    "typescript": "^3.2.2",
+    "vsce": "^1.54.0",
+    "vscode": "^1.1.26"
   },
   "engines": {
     "vscode": "^1.23.0"
