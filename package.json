@@ -5,7 +5,7 @@
   "icon": "icon.png",
   "author": "Tyler Benfield <rtbenfield@gmail.com>",
   "publisher": "rtbenfield",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "preview": true,
   "license": "MIT",
   "homepage": "https://github.com/rtbenfield/vscode-jest-test-adapter",

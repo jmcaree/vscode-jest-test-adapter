@@ -63,7 +63,12 @@ export default class JestManager {
 
     const options: Options = {
       shell: useShell,
-      ...(testFilter || {}),
+      testFileNamePattern: testFilter && testFilter.testFileNamePattern
+        ? `"${testFilter.testFileNamePattern}"`
+        : undefined,
+      testNamePattern: testFilter && testFilter.testNamePattern
+        ? `"${testFilter.testNamePattern}"`
+        : undefined,
     };
 
     const projectWorkspace = this.initProjectWorkspace();
