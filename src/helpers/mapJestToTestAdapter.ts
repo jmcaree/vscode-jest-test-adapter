@@ -143,13 +143,13 @@ export function mapTestIdsToTestFilter(tests: string[]): ITestFilter | null {
   if (tests[0].includes(TEST_ID_SEPARATOR)) {
     // Test filter is a name
     return {
-      testFileNamePattern: `"(${tests.map((t) => t.split(TEST_ID_SEPARATOR)[0]).join("|")})"`,
-      testNamePattern: `"(${tests.map((t) => t.split(TEST_ID_SEPARATOR)[1]).join("|")})"`,
+      testFileNamePattern: `(${tests.map((t) => t.split(TEST_ID_SEPARATOR)[0]).join("|")})`,
+      testNamePattern: `(${tests.map((t) => t.split(TEST_ID_SEPARATOR)[1]).join("|")})`,
     };
   } else {
     // Test filter is a file path
     return {
-      testFileNamePattern: `"(${tests.join("|")})"`,
+      testFileNamePattern: `(${tests.join("|")})`,
     };
   }
 }
