@@ -5,7 +5,7 @@
   "icon": "icon.png",
   "author": "Tyler Benfield <rtbenfield@gmail.com>",
   "publisher": "rtbenfield",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "preview": true,
   "license": "MIT",
   "homepage": "https://github.com/rtbenfield/vscode-jest-test-adapter",
@@ -82,6 +82,17 @@
           "description": "Override the path to the Jest config file. The default behavior is to attempt to detect common configurations.",
           "scope": "resource",
           "type": "string"
+        },
+        "jestTestExplorer.debugOutput": {
+          "description": "Specifies where to display the output from the Debug process.",
+          "default": "internalConsole",
+          "scope": "resource",
+          "type": "string",
+          "enum": [
+            "internalConsole",
+            "integratedTerminal",
+            "externalTerminal"
+          ]
         }
       }
     }

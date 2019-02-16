@@ -4,6 +4,7 @@ import { Log, TestAdapterRegistrar } from "vscode-test-adapter-util";
 import JestTestAdapter, { IJestTestAdapterOptions } from "./adapter";
 import pathToConfigHelper from "./helpers/pathToConfig";
 import pathToJestHelper from "./helpers/pathToJest";
+import { DebugOutput } from "./JestManager";
 
 function getJestAdapterOptions(): IJestTestAdapterOptions {
   const pathToJest = (w: vscode.WorkspaceFolder) => {
@@ -15,6 +16,9 @@ function getJestAdapterOptions(): IJestTestAdapterOptions {
       || pathToConfigHelper();
   };
   return {
+    debugOutput: vscode.workspace
+      .getConfiguration("jestTestExplorer")
+      .get<DebugOutput>("debugOutput", DebugOutput.internalConsole),
     pathToConfig,
     pathToJest,
   };

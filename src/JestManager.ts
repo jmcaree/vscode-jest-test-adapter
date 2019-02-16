@@ -9,7 +9,14 @@ import { platform } from "os";
 import { WorkspaceFolder } from "vscode";
 import { IJestResponse, ITestFilter } from "./types";
 
+export enum DebugOutput {
+  externalTerminal = "externalTerminal",
+  integratedTerminal = "integratedTerminal",
+  internalConsole = "internalConsole",
+}
+
 export interface IJestManagerOptions {
+  debugOutput: DebugOutput;
   pathToConfig: (workspaceFolder: WorkspaceFolder) => string;
   pathToJest: (workspaceFolder: WorkspaceFolder) => string;
 }

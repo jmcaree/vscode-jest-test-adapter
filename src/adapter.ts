@@ -50,7 +50,7 @@ export default class JestTestAdapter implements TestAdapter {
   constructor(
     public readonly workspace: vscode.WorkspaceFolder,
     private readonly log: Log,
-    options: IJestTestAdapterOptions,
+    private readonly options: IJestTestAdapterOptions,
   ) {
 
     this.log.info("Initializing Jest adapter");
@@ -152,7 +152,7 @@ export default class JestTestAdapter implements TestAdapter {
 
     const debugConfiguration: vscode.DebugConfiguration = {
       args,
-      console: "integratedTerminal",
+      console: this.options.debugOutput,
       cwd: "${workspaceFolder}",
       internalConsoleOptions: "neverOpen",
       name: "vscode-jest-test-adapter",
