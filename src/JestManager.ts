@@ -22,14 +22,12 @@ export interface IJestManagerOptions {
 }
 
 export default class JestManager {
-
   private readonly activeRunners: Set<Runner> = new Set<Runner>();
 
   constructor(
     public readonly workspace: WorkspaceFolder,
     private readonly options: IJestManagerOptions,
-  ) {
-  }
+  ) { }
 
   public closeAllActiveProcesses(): void {
     [...this.activeRunners].forEach((r) => {
@@ -42,16 +40,20 @@ export default class JestManager {
     return this.runTests();
   }
 
-  public async runTests(testFilter?: ITestFilter | null): Promise<IJestResponse | null> {
-    const results = await new Promise<JestTotalResults | null>((resolve, reject) => {
-      const runner = this.createRunner(testFilter);
-      runner
-        .once("executableJSON", (data: JestTotalResults) => resolve(data))
-        .once("exception", (result) => reject(result))
-        .once("terminalError", (result) => reject(result))
-        .once("debuggerProcessExit", () => resolve(null));
-      runner.start(false);
-    });
+  public async runTests(
+    testFilter?: ITestFilter | null,
+  ): Promise<IJestResponse | null> {
+    const results = await new Promise<JestTotalResults | null>(
+      (resolve, reject) => {
+        const runner = this.createRunner(testFilter);
+        runner
+          .once("executableJSON", (data: JestTotalResults) => resolve(data))
+          .once("exception", (result) => reject(result))
+          .once("terminalError", (result) => reject(result))
+          .once("debuggerProcessExit", () => resolve(null));
+        runner.start(false);
+      },
+    );
     if (!results) {
       return null;
     }
@@ -70,23 +72,27 @@ export default class JestManager {
 
     const options: Options = {
       shell: useShell,
-      testFileNamePattern: testFilter && testFilter.testFileNamePattern
-        ? `"${testFilter.testFileNamePattern}"`
-        : undefined,
-      testNamePattern: testFilter && testFilter.testNamePattern
-        ? `"${testFilter.testNamePattern}"`
-        : undefined,
+      testFileNamePattern:
+        testFilter && testFilter.testFileNamePattern
+          ? `"${testFilter.testFileNamePattern}"`
+          : undefined,
+      testNamePattern:
+        testFilter && testFilter.testNamePattern
+          ? `"${testFilter.testNamePattern.replace(/"/g, '\\"')}"`
+          : undefined,
     };
 
     const projectWorkspace = this.initProjectWorkspace();
     const runner = new Runner(projectWorkspace, options);
     this.activeRunners.add(runner);
-    return runner
-      // // tslint:disable-next-line:no-console
-      // .on("executableStdErr", (x: Buffer) => console.log(x.toString()))
-      // // tslint:disable-next-line:no-console
-      // .on("executableOutput", (x) => console.log(x))
-      .once("debuggerProcessExit", () => this.activeRunners.delete(runner));
+    return (
+      runner
+        // // tslint:disable-next-line:no-console
+        // .on("executableStdErr", (x: Buffer) => console.log(x.toString()))
+        // // tslint:disable-next-line:no-console
+        // .on("executableOutput", (x) => console.log(x))
+        .once("debuggerProcessExit", () => this.activeRunners.delete(runner))
+    );
   }
 
   private initProjectWorkspace(): ProjectWorkspace {
