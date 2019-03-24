@@ -5,7 +5,10 @@
   "icon": "icon.png",
   "author": "Tyler Benfield <rtbenfield@gmail.com>",
   "publisher": "rtbenfield",
-  "version": "0.1.3",
+  "contributors": [
+    "Craig Fleming (https://github.com/rythos42)"
+  ],
+  "version": "0.2.0",
   "preview": true,
   "license": "MIT",
   "homepage": "https://github.com/rtbenfield/vscode-jest-test-adapter",
@@ -36,16 +39,16 @@
     "vscode:prepublish": "tsc"
   },
   "dependencies": {
-    "jest-editor-support": "^23.6.0",
+    "jest-editor-support": "^25.0.1",
     "tslib": "^1.9.3",
-    "vscode-test-adapter-api": "^1.1.0",
-    "vscode-test-adapter-util": "^0.6.0"
+    "vscode-test-adapter-api": "^1.4.0",
+    "vscode-test-adapter-util": "^0.6.3"
   },
   "devDependencies": {
-    "tslint": "^5.12.0",
-    "typescript": "^3.2.2",
-    "vsce": "^1.54.0",
-    "vscode": "^1.1.26"
+    "tslint": "^5.13.1",
+    "typescript": "^3.3.3333",
+    "vsce": "^1.57.1",
+    "vscode": "^1.1.30"
   },
   "engines": {
     "vscode": "^1.23.0"
