@@ -2,6 +2,12 @@
   "extends": [
     "tslint:recommended"
   ],
+  "linterOptions": {
+    "exclude": [
+      "**/node_modules/**",
+      "@types/**"
+    ]
+  },
   "jsRules": {},
   "rules": {},
   "rulesDirectory": []

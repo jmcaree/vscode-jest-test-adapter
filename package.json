@@ -39,12 +39,15 @@
     "vscode:prepublish": "tsc"
   },
   "dependencies": {
+    "@babel/traverse": "^7.2.3",
     "jest-editor-support": "^25.0.1",
+    "micromatch": "^3.1.10",
     "tslib": "^1.9.3",
     "vscode-test-adapter-api": "^1.4.0",
     "vscode-test-adapter-util": "^0.6.3"
   },
   "devDependencies": {
+    "@types/micromatch": "^3.1.0",
     "tslint": "^5.13.1",
     "typescript": "^3.3.3333",
     "vsce": "^1.57.1",

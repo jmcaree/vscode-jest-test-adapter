@@ -1,4 +1,5 @@
 import {
+  IParseResults,
   JestAssertionResults,
   JestFileResults,
   TestAssertionStatus,
@@ -66,6 +67,26 @@ export function mapJestResponseToTestSuiteInfo(
   };
 }
 
+function transformFileResultIntoTree(
+  resultFileName: string,
+  workDir: string,
+  fileTestCases: Array<TestSuiteInfo | TestInfo>,
+): TestSuiteInfo {
+  const pathSeparator = resultFileName.indexOf("/") !== -1 ? "/" : "\\";
+  const path = resultFileName
+    .replace(new RegExp(escapeRegExp(workDir), "ig"), "")
+    .split(pathSeparator);
+  const lastPathElement = path[path.length - 1];
+  const lastChild: TestSuiteInfo = {
+    children: fileTestCases,
+    file: resultFileName,
+    id: lastPathElement,
+    label: lastPathElement,
+    type: "suite",
+  };
+  return createDirectoryStructure(lastChild, path, path.length - 2);
+}
+
 function createDirectoryStructure(
   currentLevel: TestSuiteInfo,
   thePath: string[],
@@ -80,8 +101,8 @@ function createDirectoryStructure(
 
   const nextLevel: TestSuiteInfo = {
     children: [currentLevel],
-    label: currentPathElement,
     id: currentPathElement,
+    label: currentPathElement,
     type: "suite",
   };
 
@@ -101,9 +122,7 @@ export function mapJestFileResultToTestSuiteInfo(
       const target = (testResult.ancestorTitles as string[]).reduce(
         (innerTree, ancestorTitle, i, a) => {
           const fullName = a.slice(0, i + 1).join(" ");
-          const id = `${escapeRegExp(
-            result.name,
-          )}${TEST_ID_SEPARATOR}^${escapeRegExp(fullName)}`;
+          const id = getTestId(result.name, fullName);
           let next = innerTree.find((x) => x.id === id);
           if (next) {
             return (next as TestSuiteInfo).children;
@@ -136,19 +155,47 @@ export function mapJestFileResultToTestSuiteInfo(
     )
     .map((testResult) => mapJestAssertionToTestInfo(testResult, result));
 
-  const pathSeparator = result.name.indexOf("/") !== -1 ? "/" : "\\";
-  const path = result.name
-    .replace(new RegExp(escapeRegExp(workDir), "ig"), "")
-    .split(pathSeparator);
-  const lastPathElement = path[path.length - 1];
-  const lastChild: TestSuiteInfo = {
-    label: lastPathElement,
-    id: lastPathElement,
+  return transformFileResultIntoTree(
+    result.name,
+    workDir,
+    testCases.concat(testSuites),
+  );
+}
+
+export function mapJestParseToTestSuiteInfo(
+  loadedTests: IParseResults[],
+  workDir: string,
+): TestSuiteInfo {
+  const testSuiteInfos = loadedTests
+    .map((testFile) => {
+      let fileName = null;
+      const testCases = testFile.itBlocks.map((itBlock) => {
+        fileName = itBlock.file;
+
+        const testName = itBlock.name ? itBlock.name : "test has no name";
+
+        return {
+          file: fileName,
+          id: getTestId(fileName, testName),
+          label: testName,
+          line: itBlock.start.line,
+          skipped: false,
+          type: "test",
+        } as TestInfo;
+      });
+
+      return fileName
+        ? transformFileResultIntoTree(fileName, workDir, testCases)
+        : null;
+    })
+    .filter((testSuiteInfo) => testSuiteInfo) as TestSuiteInfo[];
+
+  return {
+    children: merge([], testSuiteInfos),
+    id: "root",
+    label: "Jest",
     type: "suite",
-    file: result.name,
-    children: testCases.concat(testSuites),
   };
-  return createDirectoryStructure(lastChild, path, path.length - 2);
 }
 
 export function mapJestAssertionToTestDecorations(
@@ -187,7 +234,7 @@ export function mapJestAssertionToTestInfo(
 
   return {
     file: fileResult.name,
-    id: getTestId(fileResult, assertionResult),
+    id: getTestId(fileResult.name, assertionResult.fullName),
     label: assertionResult.title,
     line,
     skipped,
@@ -195,13 +242,8 @@ export function mapJestAssertionToTestInfo(
   };
 }
 
-export function getTestId(
-  fileResult: JestFileResults,
-  assertionResult: JestAssertionResults,
-): string {
-  return `${escapeRegExp(
-    fileResult.name,
-  )}${TEST_ID_SEPARATOR}${mapJestAssertionToId(assertionResult)}`;
+export function getTestId(fileName: string, testName: string): string {
+  return `${escapeRegExp(fileName)}${TEST_ID_SEPARATOR}^${escapeRegExp(testName)}$`;
 }
 
 export function mapJestAssertionToId(result: JestAssertionResults): string {
