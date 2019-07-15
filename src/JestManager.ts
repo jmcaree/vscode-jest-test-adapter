@@ -102,8 +102,9 @@ export default class JestManager {
       this.workspace.uri.fsPath,
       jestPath,
       configPath,
-      // TOOD: lookup version used in project
+      // TODO: lookup version used in project
       20,
+      "log",
       false,
       false,
     );

@@ -109,6 +109,17 @@ export default class TestLoader {
   public async loadTests() {
     this.log.info(`Loading Jest settings from ${this.projectWorkspace.pathToConfig}`);
     const settings = new Settings(this.projectWorkspace);
+
+    // wrap the sync callback in a Promise
+    const getConfig = (): Promise<void> => {
+      return new Promise((resolve) => {
+        settings.getConfig(() => {
+          resolve();
+        });
+      });
+    };
+    // wait for Promise to return so we have the correct settings for testMatch and testRegex.
+    await getConfig();
     this.log.info("Jest settings loaded");
 
     this.log.info("Loading Jest tests");

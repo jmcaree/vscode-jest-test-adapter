@@ -198,8 +198,9 @@ export default class JestTestAdapter implements TestAdapter {
       this.workspace.uri.fsPath,
       jestPath,
       configPath,
-      // TOOD: lookup version used in project
+      // TODO: lookup version used in project
       20,
+      "log",
       false,
       false,
     );
