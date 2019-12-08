@@ -40,7 +40,7 @@ function checkIsDirectory(directory: string): Promise<boolean> {
  * @param settings The Jest settings.
  */
 function createMatcher(settings: Settings): Matcher {
-  if (settings.settings.testRegex) {
+  if (settings.settings.testRegex && settings.settings.testRegex.length > 0) {
     const regex = new RegExp(settings.settings.testRegex);
     return (value) => regex.test(value);
   } else {

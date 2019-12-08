@@ -104,7 +104,6 @@ export default class JestManager {
       configPath,
       // TODO: lookup version used in project
       20,
-      "log",
       false,
       false,
     );
