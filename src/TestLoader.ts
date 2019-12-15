@@ -1,9 +1,10 @@
 import * as fs from "fs";
 import {
+  getSettings,
   IParseResults,
+  JestSettings,
   parse,
   ProjectWorkspace,
-  Settings,
 } from "jest-editor-support";
 import * as mm from "micromatch";
 import * as path from "path";
@@ -39,12 +40,14 @@ function checkIsDirectory(directory: string): Promise<boolean> {
  * Creates a matcher function that returns true if a file should be explored for tests, false otherwise.
  * @param settings The Jest settings.
  */
-function createMatcher(settings: Settings): Matcher {
-  if (settings.settings.testRegex && settings.settings.testRegex.length > 0) {
-    const regex = new RegExp(settings.settings.testRegex);
+function createMatcher(settings: JestSettings): Matcher {
+  // TODO what to do if there is more than one config?...
+
+  if (settings?.configs?.length > 0 && settings.configs[0].testRegex?.length > 0) {
+    const regex = new RegExp(settings.configs[0].testRegex[0]);
     return (value) => regex.test(value);
   } else {
-    return (value) => mm.any(value, settings.settings.testMatch);
+    return (value) => mm.any(value, settings.configs[0].testMatch);
   }
 }
 
@@ -108,18 +111,8 @@ export default class TestLoader {
 
   public async loadTests() {
     this.log.info(`Loading Jest settings from ${this.projectWorkspace.pathToConfig}`);
-    const settings = new Settings(this.projectWorkspace);
-
-    // wrap the sync callback in a Promise
-    const getConfig = (): Promise<void> => {
-      return new Promise((resolve) => {
-        settings.getConfig(() => {
-          resolve();
-        });
-      });
-    };
-    // wait for Promise to return so we have the correct settings for testMatch and testRegex.
-    await getConfig();
+    const settings = await getSettings(this.projectWorkspace);
+    
     this.log.info("Jest settings loaded");
 
     this.log.info("Loading Jest tests");

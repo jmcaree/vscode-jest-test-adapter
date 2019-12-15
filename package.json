@@ -41,12 +41,14 @@
   "dependencies": {
     "@babel/traverse": "^7.7.4",
     "jest-editor-support": "^27.1.0",
+    "lodash": "^4.17.15",
     "micromatch": "^4.0.2",
     "tslib": "^1.10.0",
     "vscode-test-adapter-api": "^1.7.0",
     "vscode-test-adapter-util": "^0.7.0"
   },
   "devDependencies": {
+    "@types/lodash": "^4.14.149",
     "@types/micromatch": "^3.1.1",
     "prettier": "^1.19.1",
     "tslint": "^5.20.1",

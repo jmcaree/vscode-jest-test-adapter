@@ -5,7 +5,6 @@ import {
   Runner,
   TestReconciler,
 } from "jest-editor-support";
-import { platform } from "os";
 import { WorkspaceFolder } from "vscode";
 import { IJestResponse, ITestFilter } from "./types";
 
@@ -68,10 +67,7 @@ export default class JestManager {
   }
 
   private createRunner(testFilter?: ITestFilter | null): Runner {
-    const useShell = platform() === "win32";
-
     const options: Options = {
-      shell: useShell,
       testFileNamePattern:
         testFilter && testFilter.testFileNamePattern
           ? `"${testFilter.testFileNamePattern}"`
@@ -104,6 +100,8 @@ export default class JestManager {
       configPath,
       // TODO: lookup version used in project
       20,
+      // TODO not sure if this is correct...
+      undefined,
       false,
       false,
     );

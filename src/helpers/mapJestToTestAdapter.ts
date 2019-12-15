@@ -234,7 +234,7 @@ export function mapJestAssertionToTestInfo(
 
   return {
     file: fileResult.name,
-    id: getTestId(fileResult.name, assertionResult.fullName),
+    id: getTestId(fileResult.name, assertionResult.title),
     label: assertionResult.title,
     line,
     skipped,
@@ -243,7 +243,7 @@ export function mapJestAssertionToTestInfo(
 }
 
 export function getTestId(fileName: string, testName: string): string {
-  return `${escapeRegExp(fileName)}${TEST_ID_SEPARATOR}^${escapeRegExp(testName)}$`;
+  return `${escapeRegExp(fileName)}${TEST_ID_SEPARATOR}^${escapeRegExp(testName)}$`.toLowerCase();
 }
 
 export function mapJestAssertionToId(result: JestAssertionResults): string {
