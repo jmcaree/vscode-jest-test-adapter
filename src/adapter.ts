@@ -104,8 +104,7 @@ export default class JestTestAdapter implements TestAdapter {
       this.testsEmitter.fire({ type: "finished", errorMessage: JSON.stringify(error) });
     }
 
-    // mark all loaded tests as retired?  Or is it saying that none of the tests are retired?
-    this.retireEmitter.fire({});
+    this.retireAllTests()
 
     this.log.info("Finished loading Jest tests.");
     this.isLoadingTests = false;
@@ -187,12 +186,12 @@ export default class JestTestAdapter implements TestAdapter {
 
     fileResult.assertionResults.forEach(assertionResult => {
       const test = mapJestAssertionToTestInfo(assertionResult, fileResult);
-      const testRunEvent = {
+      const testRunEvent: TestEvent = {
         decorations: mapJestAssertionToTestDecorations(assertionResult, fileResult.name, reconciler),
         state: assertionResult.status,
         test,
         type: "test",
-      } as TestEvent;
+      };
       this.testStatesEmitter.fire(testRunEvent);
     });
 
@@ -241,6 +240,13 @@ export default class JestTestAdapter implements TestAdapter {
     this.testStatesEmitter.fire(suiteEndEvent);
 
     suite.children.filter(c => c.type === "suite").forEach(s => this.fireSuiteComplete(s as TestSuiteInfo));
+  }
+
+  /**
+   * Marks all tests as retired.
+   */
+  private retireAllTests() {
+    this.retireEmitter.fire({});
   }
 
   private initProjectWorkspace(): ProjectWorkspace {

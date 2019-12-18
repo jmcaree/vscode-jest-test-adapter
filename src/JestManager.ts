@@ -91,6 +91,7 @@ export default class JestManager {
     );
   }
 
+  // TODO there is duplicate versions of this code.
   private initProjectWorkspace(): ProjectWorkspace {
     const configPath = this.options.pathToConfig(this.workspace);
     const jestPath = this.options.pathToJest(this.workspace);

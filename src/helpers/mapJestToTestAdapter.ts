@@ -5,12 +5,8 @@ import {
   TestAssertionStatus,
   TestReconciler,
 } from "jest-editor-support";
-import {
-  TestDecoration,
-  TestInfo,
-  TestSuiteInfo,
-} from "vscode-test-adapter-api";
-import { TEST_ID_SEPARATOR } from "../constants";
+import { TestDecoration, TestInfo, TestSuiteInfo } from "vscode-test-adapter-api";
+import { TEST_ID_SEPARATOR, DESCRIBE_ID_SEPARATOR } from "../constants";
 import { IJestResponse, ITestFilter } from "../types";
 import escapeRegExp from "./escapeRegExp";
 
@@ -255,21 +251,33 @@ export function mapTestIdsToTestFilter(tests: string[]): ITestFilter | null {
     return null;
   }
 
-  // Test matching is done by creating a regular expression out of the specified test IDs
-  if (tests[0].includes(TEST_ID_SEPARATOR)) {
-    // Test filter is a name
+  const results = tests
+    .map(t => t.split(RegExp(`${TEST_ID_SEPARATOR}|${DESCRIBE_ID_SEPARATOR}`)))
+    .reduce(
+      (acc, [f, ...rest]) => {
+        // add the file if it is not already in the list of files.
+        if (!acc.fileNames.includes(f)) {
+          acc.fileNames.push(f);
+        }
+        // add the tests to the tests if not already present.
+        if (rest && rest.length > 0) {
+          const testName = rest[rest.length - 1];
+          if (!acc.testNames.includes(testName)) {
+            acc.testNames.push(testName);
+          }
+        }
+        return acc;
+      },
+      {
+        fileNames: [] as string[],
+        testNames: [] as string[],
+      },
+    );
+
+  // we accumulate the file and test names into regex expressions.  Note we escape the names to avoid interpreting
+  // any regex control characters in the file or test names.
     return {
-      testFileNamePattern: `(${tests
-        .map((t) => t.split(TEST_ID_SEPARATOR)[0])
-        .join("|")})`,
-      testNamePattern: `(${tests
-        .map((t) => t.split(TEST_ID_SEPARATOR)[1])
-        .join("|")})`,
-    };
-  } else {
-    // Test filter is a file path
-    return {
-      testFileNamePattern: `(${tests.join("|")})`,
+    testFileNamePattern: `(${results.fileNames.map(escapeRegExp).join("|")})`,
+    testNamePattern: results.testNames.length > 0 ? `(${results.testNames.map(escapeRegExp).join("|")})` : undefined,
     };
   }
-}
