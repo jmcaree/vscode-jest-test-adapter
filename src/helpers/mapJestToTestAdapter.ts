@@ -6,7 +6,7 @@ import {
   TestReconciler,
 } from "jest-editor-support";
 import { TestDecoration, TestInfo, TestSuiteInfo } from "vscode-test-adapter-api";
-import { TEST_ID_SEPARATOR, DESCRIBE_ID_SEPARATOR } from "../constants";
+import { DESCRIBE_ID_SEPARATOR, TEST_ID_SEPARATOR } from "../constants";
 import { IJestResponse, ITestFilter } from "../types";
 import escapeRegExp from "./escapeRegExp";
 
@@ -17,7 +17,7 @@ function getAssertionStatus(
 ): TestAssertionStatus | undefined {
   if (reconciler) {
     const fileResult = reconciler.assertionsForTestFile(file) || [];
-    return fileResult.find((x) => x.title === result.fullName);
+    return fileResult.find(x => x.title === result.fullName);
   }
   return undefined;
 }
@@ -26,19 +26,10 @@ function merge(
   mergeDestination: Array<TestSuiteInfo | TestInfo>,
   mergeSource: Array<TestSuiteInfo | TestInfo>,
 ): Array<TestSuiteInfo | TestInfo> {
-  mergeSource.forEach((suiteResult) => {
-    const existingResult = mergeDestination.find(
-      (result) => result.id === suiteResult.id,
-    );
-    if (
-      existingResult &&
-      (existingResult as TestSuiteInfo).children &&
-      (suiteResult as TestSuiteInfo).children
-    ) {
-      merge(
-        (existingResult as TestSuiteInfo).children,
-        (suiteResult as TestSuiteInfo).children,
-      );
+  mergeSource.forEach(suiteResult => {
+    const existingResult = mergeDestination.find(result => result.id === suiteResult.id);
+    if (existingResult && (existingResult as TestSuiteInfo).children && (suiteResult as TestSuiteInfo).children) {
+      merge((existingResult as TestSuiteInfo).children, (suiteResult as TestSuiteInfo).children);
     } else {
       mergeDestination.push(suiteResult);
     }
@@ -69,9 +60,7 @@ function transformFileResultIntoTree(
   fileTestCases: Array<TestSuiteInfo | TestInfo>,
 ): TestSuiteInfo {
   const pathSeparator = resultFileName.indexOf("/") !== -1 ? "/" : "\\";
-  const path = resultFileName
-    .replace(new RegExp(escapeRegExp(workDir), "ig"), "")
-    .split(pathSeparator);
+  const path = resultFileName.replace(new RegExp(escapeRegExp(workDir), "ig"), "").split(pathSeparator);
   const lastPathElement = path[path.length - 1];
   const lastChild: TestSuiteInfo = {
     children: fileTestCases,
@@ -93,7 +82,9 @@ function createDirectoryStructure(
     currentPathIndex--;
     currentPathElement = thePath[currentPathIndex];
   }
-  if (currentPathElement === undefined) { return currentLevel; }
+  if (currentPathElement === undefined) {
+    return currentLevel;
+  }
 
   const nextLevel: TestSuiteInfo = {
     children: [currentLevel],
@@ -105,67 +96,46 @@ function createDirectoryStructure(
   return createDirectoryStructure(nextLevel, thePath, currentPathIndex - 1);
 }
 
-export function mapJestFileResultToTestSuiteInfo(
-  result: JestFileResults,
-  workDir: string,
-): TestSuiteInfo {
+export function mapJestFileResultToTestSuiteInfo(result: JestFileResults, workDir: string): TestSuiteInfo {
   const testSuites = result.assertionResults
-    .filter(
-      (testResult) =>
-        testResult.ancestorTitles && testResult.ancestorTitles.length > 0,
-    )
+    .filter(testResult => testResult.ancestorTitles && testResult.ancestorTitles.length > 0)
     .reduce((testTree, testResult) => {
-      const target = (testResult.ancestorTitles as string[]).reduce(
-        (innerTree, ancestorTitle, i, a) => {
-          const fullName = a.slice(0, i + 1).join(" ");
-          const id = getTestId(result.name, fullName);
-          let next = innerTree.find((x) => x.id === id);
-          if (next) {
-            return (next as TestSuiteInfo).children;
-          } else {
-            next = {
-              children: [],
-              file: result.name,
-              id,
-              label: ancestorTitle,
-              type: "suite",
-            };
-            innerTree.push(next);
-            return next.children;
-          }
-        },
-        testTree,
-      );
+      const target = (testResult.ancestorTitles as string[]).reduce((innerTree, ancestorTitle, i, a) => {
+        const fullName = a.slice(0, i + 1).join(" ");
+        const id = getTestId(result.name, fullName);
+        let next = innerTree.find(x => x.id === id);
+        if (next) {
+          return (next as TestSuiteInfo).children;
+        } else {
+          next = {
+            children: [],
+            file: result.name,
+            id,
+            label: ancestorTitle,
+            type: "suite",
+          };
+          innerTree.push(next);
+          return next.children;
+        }
+      }, testTree);
 
       target.push(mapJestAssertionToTestInfo(testResult, result));
 
       return testTree;
     }, new Array<TestSuiteInfo | TestInfo>());
 
-  const testCases: Array<
-    TestSuiteInfo | TestInfo
-  > = result.assertionResults
-    .filter(
-      (testResult) =>
-        !testResult.ancestorTitles || testResult.ancestorTitles.length === 0,
-    )
-    .map((testResult) => mapJestAssertionToTestInfo(testResult, result));
+  const testCases: Array<TestSuiteInfo | TestInfo> = result.assertionResults
+    .filter(testResult => !testResult.ancestorTitles || testResult.ancestorTitles.length === 0)
+    .map(testResult => mapJestAssertionToTestInfo(testResult, result));
 
-  return transformFileResultIntoTree(
-    result.name,
-    workDir,
-    testCases.concat(testSuites),
-  );
+  return transformFileResultIntoTree(result.name, workDir, testCases.concat(testSuites));
 }
 
-export function mapJestParseToTestSuiteInfo(
-  loadedTests: IParseResults[],
-  workDir: string,
-): TestSuiteInfo {
+export function mapJestParseToTestSuiteInfo(loadedTests: IParseResults[], workDir: string): TestSuiteInfo {
   const testSuiteInfos = loadedTests
-    .map((testFile) => {
+    .map(testFile => {
       let fileName = null;
-      const testCases = testFile.itBlocks.map((itBlock) => {
+      const testCases = testFile.itBlocks.map(itBlock => {
         fileName = itBlock.file;
 
         const testName = itBlock.name ? itBlock.name : "test has no name";
@@ -180,11 +150,9 @@ export function mapJestParseToTestSuiteInfo(
         } as TestInfo;
       });
 
-      return fileName
-        ? transformFileResultIntoTree(fileName, workDir, testCases)
-        : null;
+      return fileName ? transformFileResultIntoTree(fileName, workDir, testCases) : null;
     })
-    .filter((testSuiteInfo) => testSuiteInfo) as TestSuiteInfo[];
+    .filter(testSuiteInfo => testSuiteInfo) as TestSuiteInfo[];
 
   return {
     children: merge([], testSuiteInfos),
@@ -216,11 +184,7 @@ export function mapJestAssertionToTestInfo(
   fileResult: JestFileResults,
   reconciler?: TestReconciler,
 ): TestInfo {
-  const assertionStatus = getAssertionStatus(
-    assertionResult,
-    fileResult.name,
-    reconciler,
-  );
+  const assertionStatus = getAssertionStatus(assertionResult, fileResult.name, reconciler);
   let line: number | undefined;
   let skipped: boolean = false;
   if (assertionStatus) {
@@ -244,6 +208,22 @@ export function getTestId(fileName: string, testName: string): string {
 
 export function mapJestAssertionToId(result: JestAssertionResults): string {
   return `^${escapeRegExp(result.fullName)}$`;
+}
+
+export function mapAssertionResultToTestId(assertionResult: JestAssertionResults, fileName: string) {
+  // we seem to get an issue with the casing of the drive letter in Windows at least.  We are going to lowercase
+  // the letter.
+  const driveLetterRegex = /^([a-zA-Z])\:\\/;
+  if (driveLetterRegex.test(fileName)) {
+    fileName = fileName.replace(driveLetterRegex, x => x.toLowerCase())
+}
+
+  // TODO we may be able to rationalise the code that generates ids here.
+  const describeBlocks = assertionResult.ancestorTitles && assertionResult.ancestorTitles.length > 0
+    ? DESCRIBE_ID_SEPARATOR + assertionResult.ancestorTitles.join(DESCRIBE_ID_SEPARATOR)
+    : "";
+  const testId = `${fileName}${describeBlocks}${TEST_ID_SEPARATOR}${assertionResult.title}`;
+  return testId;
 }
 
 export function mapTestIdsToTestFilter(tests: string[]): ITestFilter | null {

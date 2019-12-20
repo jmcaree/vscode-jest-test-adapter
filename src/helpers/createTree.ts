@@ -103,7 +103,7 @@ const process = (parseResults: IParseResults[], workspaceRoot: string, root: Roo
 
     // process all test nodes...
     standaloneTests.forEach(it => {
-      const expectedTestId = `${fileNode!.id}${DESCRIBE_ID_SEPARATOR}${TEST_ID_SEPARATOR}${it.name}`;
+      const expectedTestId = `${fileNode!.id}${TEST_ID_SEPARATOR}${it.name}`;
       let testNode = fileNode!.tests.find(t => t.id === expectedTestId);
       if (!testNode) {
         testNode = createTestNode(expectedTestId, it.name, file, it.start.line - 1);

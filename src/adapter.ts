@@ -1,4 +1,4 @@
-import { JestFileResults, ProjectWorkspace, TestReconciler } from "jest-editor-support";
+import { ProjectWorkspace } from "jest-editor-support";
 import * as vscode from "vscode";
 import {
   RetireEvent,
@@ -15,9 +15,8 @@ import {
 import { Log } from "vscode-test-adapter-util";
 import { createTree } from "./helpers/createTree";
 import {
+  mapAssertionResultToTestId,
   mapJestAssertionToTestDecorations,
-  mapJestAssertionToTestInfo,
-  mapJestFileResultToTestSuiteInfo,
   mapTestIdsToTestFilter,
 } from "./helpers/mapJestToTestAdapter";
 import { mapTreeToSuite } from "./helpers/mapTreeToSuite";
@@ -95,8 +94,6 @@ export default class JestTestAdapter implements TestAdapter {
       const tree = createTree(parsedResults, this.workspace.uri.fsPath);
       this.tree = tree;
       const suite = mapTreeToSuite(tree); // mapJestParseToTestSuiteInfo(parsedResults, this.workspace.uri.fsPath);
-      console.log(tree)
-      console.log(suite)
 
       this.testsEmitter.fire({ suite, type: "finished" });
     } catch (error) {
@@ -104,7 +101,7 @@ export default class JestTestAdapter implements TestAdapter {
       this.testsEmitter.fire({ type: "finished", errorMessage: JSON.stringify(error) });
     }
 
-    this.retireAllTests()
+    this.retireAllTests();
 
     this.log.info("Finished loading Jest tests.");
     this.isLoadingTests = false;
@@ -126,7 +123,18 @@ export default class JestTestAdapter implements TestAdapter {
 
       if (jestResponse) {
         const { reconciler, results } = jestResponse;
-        results.testResults.forEach(fileResult => this.processFileResult(fileResult, reconciler));
+        results.testResults.forEach(fileResult => {
+          fileResult.assertionResults.forEach(assertionResult => {
+            const testRunEvent: TestEvent = {
+              decorations: mapJestAssertionToTestDecorations(assertionResult, fileResult.name, reconciler),
+              state: assertionResult.status,
+              test: mapAssertionResultToTestId(assertionResult, fileResult.name),
+              type: "test",
+            };
+
+            this.testStatesEmitter.fire(testRunEvent);
+          });
+        });
       }
     } catch (error) {
       this.log.error("Error running tests", JSON.stringify(error));
@@ -177,25 +185,6 @@ export default class JestTestAdapter implements TestAdapter {
       disposable.dispose();
     }
     this.disposables = [];
-  }
-
-  private processFileResult(fileResult: JestFileResults, reconciler: TestReconciler) {
-    const suite = mapJestFileResultToTestSuiteInfo(fileResult, this.workspace.uri.fsPath);
-
-    this.fireSuiteStarting(suite);
-
-    fileResult.assertionResults.forEach(assertionResult => {
-      const test = mapJestAssertionToTestInfo(assertionResult, fileResult);
-      const testRunEvent: TestEvent = {
-        decorations: mapJestAssertionToTestDecorations(assertionResult, fileResult.name, reconciler),
-        state: assertionResult.status,
-        test,
-        type: "test",
-      };
-      this.testStatesEmitter.fire(testRunEvent);
-    });
-
-    this.fireSuiteComplete(suite);
   }
 
   private processSuite(suite: TestSuiteInfo) {
