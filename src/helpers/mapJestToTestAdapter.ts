@@ -38,13 +38,8 @@ function merge(
   return mergeDestination;
 }
 
-export function mapJestResponseToTestSuiteInfo(
-  { results }: IJestResponse,
-  workDir: string,
-): TestSuiteInfo {
-  const suiteResults = results.testResults.map((t) =>
-    mapJestFileResultToTestSuiteInfo(t, workDir),
-  );
+export function mapJestResponseToTestSuiteInfo({ results }: IJestResponse, workDir: string): TestSuiteInfo {
+  const suiteResults = results.testResults.map(t => mapJestFileResultToTestSuiteInfo(t, workDir));
 
   return {
     children: merge([], suiteResults),
@@ -163,20 +158,30 @@ export function mapJestParseToTestSuiteInfo(loadedTests: IParseResults[], workDi
 }
 
 export function mapJestAssertionToTestDecorations(
-  result: JestAssertionResults,
-  file: string,
-  reconciler?: TestReconciler,
-): TestDecoration[] {
-  const assertionResult = getAssertionStatus(result, file, reconciler);
-  if (assertionResult) {
-    return [
-      {
-        line: assertionResult.line || 0,
-        message: assertionResult.terseMessage || "",
-      },
-    ];
+  assertionResult: JestAssertionResults,
+  fileName: string,
+  reconciler: TestReconciler,
+) {
+  // TODO convert this to functional code.
+  const decorations: TestDecoration[] = [];
+
+  // TODO we are calling this method for each assertionResult even though it returns the same value for each assertionResult
+  // in the same file.  We should optimise this.
+  const assertions = reconciler.assertionsForTestFile(fileName);
+
+  if (assertions) {
+    const matchingAssertion = assertions.find(x => x.title === assertionResult.title);
+    if (matchingAssertion && matchingAssertion.line) {
+      decorations.push({
+        // TODO we could have a extension config item that controls which message type to show on hover.
+        hover: matchingAssertion.shortMessage,
+        line: matchingAssertion.line - 1,
+        message: matchingAssertion.terseMessage || "TERSE MESSAGE MISSING",
+      });
+    }
   }
-  return [];
+
+  return decorations;
 }
 
 export function mapJestAssertionToTestInfo(
@@ -215,13 +220,14 @@ export function mapAssertionResultToTestId(assertionResult: JestAssertionResults
   // the letter.
   const driveLetterRegex = /^([a-zA-Z])\:\\/;
   if (driveLetterRegex.test(fileName)) {
-    fileName = fileName.replace(driveLetterRegex, x => x.toLowerCase())
-}
+    fileName = fileName.replace(driveLetterRegex, x => x.toLowerCase());
+  }
 
   // TODO we may be able to rationalise the code that generates ids here.
-  const describeBlocks = assertionResult.ancestorTitles && assertionResult.ancestorTitles.length > 0
-    ? DESCRIBE_ID_SEPARATOR + assertionResult.ancestorTitles.join(DESCRIBE_ID_SEPARATOR)
-    : "";
+  const describeBlocks =
+    assertionResult.ancestorTitles && assertionResult.ancestorTitles.length > 0
+      ? DESCRIBE_ID_SEPARATOR + assertionResult.ancestorTitles.join(DESCRIBE_ID_SEPARATOR)
+      : "";
   const testId = `${fileName}${describeBlocks}${TEST_ID_SEPARATOR}${assertionResult.title}`;
   return testId;
 }
@@ -256,8 +262,8 @@ export function mapTestIdsToTestFilter(tests: string[]): ITestFilter | null {
 
   // we accumulate the file and test names into regex expressions.  Note we escape the names to avoid interpreting
   // any regex control characters in the file or test names.
-    return {
+  return {
     testFileNamePattern: `(${results.fileNames.map(escapeRegExp).join("|")})`,
     testNamePattern: results.testNames.length > 0 ? `(${results.testNames.map(escapeRegExp).join("|")})` : undefined,
-    };
-  }
+  };
+}

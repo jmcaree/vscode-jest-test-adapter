@@ -4,13 +4,11 @@ import {
   RetireEvent,
   TestAdapter,
   TestEvent,
-  TestInfo,
   TestLoadFinishedEvent,
   TestLoadStartedEvent,
   TestRunFinishedEvent,
   TestRunStartedEvent,
   TestSuiteEvent,
-  TestSuiteInfo,
 } from "vscode-test-adapter-api";
 import { Log } from "vscode-test-adapter-util";
 import { createTree } from "./helpers/createTree";
@@ -123,6 +121,8 @@ export default class JestTestAdapter implements TestAdapter {
 
       if (jestResponse) {
         const { reconciler, results } = jestResponse;
+
+        // TODO we should walk this.tree and emit tests for each suite and test.
         results.testResults.forEach(fileResult => {
           fileResult.assertionResults.forEach(assertionResult => {
             const testRunEvent: TestEvent = {
@@ -185,50 +185,6 @@ export default class JestTestAdapter implements TestAdapter {
       disposable.dispose();
     }
     this.disposables = [];
-  }
-
-  private processSuite(suite: TestSuiteInfo) {
-    this.fireSuiteStarting(suite);
-    suite.children.forEach(c => {
-      if (c.type === "suite") {
-        this.processSuite(c);
-      } else {
-        this.processTest(c);
-      }
-    });
-    this.fireSuiteComplete(suite);
-  }
-
-  private processTest(test: TestInfo) {
-    const testRunEvent = {
-      // decorations: mapJestAssertionToTestDecorations(assertionResult, fileResult.name, reconciler),
-      state: "passed", // assertionResult.status,
-      test,
-      type: "test",
-    } as TestEvent;
-    this.testStatesEmitter.fire(testRunEvent);
-  }
-
-  private fireSuiteStarting(suite: TestSuiteInfo) {
-    const suiteStartEvent: TestSuiteEvent = {
-      state: "running",
-      suite,
-      type: "suite",
-    };
-    this.testStatesEmitter.fire(suiteStartEvent);
-
-    suite.children.filter(c => c.type === "suite").forEach(s => this.fireSuiteStarting(s as TestSuiteInfo));
-  }
-
-  private fireSuiteComplete(suite: TestSuiteInfo) {
-    const suiteEndEvent = {
-      state: "completed",
-      suite,
-      type: "suite",
-    } as TestSuiteEvent;
-    this.testStatesEmitter.fire(suiteEndEvent);
-
-    suite.children.filter(c => c.type === "suite").forEach(s => this.fireSuiteComplete(s as TestSuiteInfo));
   }
 
   /**
