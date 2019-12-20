@@ -1,4 +1,5 @@
 import { ProjectWorkspace } from "jest-editor-support";
+import _ from "lodash";
 import * as vscode from "vscode";
 import {
   RetireEvent,
@@ -18,7 +19,7 @@ import {
   mapTestIdsToTestFilter,
 } from "./helpers/mapJestToTestAdapter";
 import { mapTreeToSuite } from "./helpers/mapTreeToSuite";
-import { RootNode } from "./helpers/tree";
+import { createRootNode, DescribeNode, FileNode, FolderNode, RootNode, TestNode } from "./helpers/tree";
 import JestManager, { IJestManagerOptions } from "./JestManager";
 import TestLoader from "./TestLoader";
 
@@ -34,8 +35,7 @@ export default class JestTestAdapter implements TestAdapter {
   private isLoadingTests: boolean = false;
   private isRunningTests: boolean = false;
   private disposables: IDiposable[] = [];
-  // @ts-ignore
-  private tree: RootNode | undefined;
+  private tree: RootNode = createRootNode("root");
   private readonly testsEmitter = new vscode.EventEmitter<TestLoadStartedEvent | TestLoadFinishedEvent>();
   private readonly testStatesEmitter = new vscode.EventEmitter<TestStateCompatibleEvent>();
   private readonly retireEmitter = new vscode.EventEmitter<RetireEvent>();
@@ -117,24 +117,35 @@ export default class JestTestAdapter implements TestAdapter {
 
     try {
       const testFilter = mapTestIdsToTestFilter(tests);
+
+      // we emit events to notify which tests we are running.
+      this.emitTestRunningRootNode(this.tree);
+
+      // begin running the tests in Jest.
       const jestResponse = await this.jestManager.runTests(testFilter);
 
       if (jestResponse) {
         const { reconciler, results } = jestResponse;
 
-        // TODO we should walk this.tree and emit tests for each suite and test.
-        results.testResults.forEach(fileResult => {
-          fileResult.assertionResults.forEach(assertionResult => {
-            const testRunEvent: TestEvent = {
-              decorations: mapJestAssertionToTestDecorations(assertionResult, fileResult.name, reconciler),
-              state: assertionResult.status,
-              test: mapAssertionResultToTestId(assertionResult, fileResult.name),
-              type: "test",
-            };
+        // map the test results to TestEvents
+        const testEvents = _.chain(results.testResults)
+          .flatMap(fileResult =>
+            fileResult.assertionResults.map(
+              assertionResult =>
+                ({
+                  decorations: mapJestAssertionToTestDecorations(assertionResult, fileResult.name, reconciler),
+                  state: assertionResult.status,
+                  test: mapAssertionResultToTestId(assertionResult, fileResult.name),
+                  type: "test",
+                  // TODO we should use the 'message' property to display detailed error messages.
+                  // message: "error message here."
+                } as TestEvent),
+            ),
+          )
+          .value();
 
-            this.testStatesEmitter.fire(testRunEvent);
-          });
-        });
+          // emit the completion events.
+        this.emitTestCompleteRootNode(this.tree, testEvents);
       }
     } catch (error) {
       this.log.error("Error running tests", JSON.stringify(error));
@@ -206,5 +217,104 @@ export default class JestTestAdapter implements TestAdapter {
       undefined,
       false,
     );
+  }
+
+  private emitTestRunningRootNode(root: RootNode) {
+    this.testStatesEmitter.fire({
+      state: "running",
+      suite: root.id,
+      type: "suite",
+    });
+
+    root.folders.forEach(f => this.emitTestRunningFolder(f));
+    root.files.forEach(f => this.emitTestRunningFile(f));
+  }
+
+  private emitTestRunningFolder(folder: FolderNode) {
+    this.testStatesEmitter.fire({
+      state: "running",
+      suite: folder.id,
+      type: "suite",
+    });
+
+    folder.folders.forEach(f => this.emitTestRunningFolder(f));
+    folder.files.forEach(f => this.emitTestRunningFile(f));
+  }
+
+  private emitTestRunningFile(file: FileNode) {
+    this.testStatesEmitter.fire({
+      state: "running",
+      suite: file.id,
+      type: "suite",
+    });
+
+    file.describeBlocks.forEach(d => this.emitTestRunningDescribe(d));
+    file.tests.forEach(t => this.emitTestRunningTest(t));
+  }
+
+  private emitTestRunningDescribe(describe: DescribeNode) {
+    this.testStatesEmitter.fire({
+      state: "running",
+      suite: describe.id,
+      type: "suite",
+    });
+    describe.tests.forEach(t => this.emitTestRunningTest(t));
+  }
+
+  private emitTestRunningTest(test: TestNode) {
+    this.testStatesEmitter.fire({
+      state: "running",
+      test: test.id,
+      type: "test",
+    });
+  }
+
+  private emitTestCompleteRootNode(root: RootNode, testEvents: TestEvent[]) {
+    this.testStatesEmitter.fire({
+      state: "completed",
+      suite: root.id,
+      type: "suite",
+    });
+
+    root.folders.forEach(f => this.emitTestCompleteFolder(f, testEvents));
+    root.files.forEach(f => this.emitTestCompleteFile(f, testEvents));
+  }
+
+  private emitTestCompleteFolder(folder: FolderNode, testEvents: TestEvent[]) {
+    this.testStatesEmitter.fire({
+      state: "completed",
+      suite: folder.id,
+      type: "suite",
+    });
+
+    folder.folders.forEach(f => this.emitTestCompleteFolder(f, testEvents));
+    folder.files.forEach(f => this.emitTestCompleteFile(f, testEvents));
+  }
+
+  private emitTestCompleteFile(file: FileNode, testEvents: TestEvent[]) {
+    this.testStatesEmitter.fire({
+      state: "completed",
+      suite: file.id,
+      type: "suite",
+    });
+
+    file.describeBlocks.forEach(d => this.emitTestCompleteDescribe(d, testEvents));
+    file.tests.forEach(t => this.emitTestCompleteTest(t, testEvents));
+  }
+
+  private emitTestCompleteDescribe(describe: DescribeNode, testEvents: TestEvent[]) {
+    this.testStatesEmitter.fire({
+      state: "completed",
+      suite: describe.id,
+      type: "suite",
+    });
+    describe.tests.forEach(t => this.emitTestCompleteTest(t, testEvents));
+  }
+
+  private emitTestCompleteTest(test: TestNode, testEvents: TestEvent[]) {
+    const testEvent = testEvents.find(e => e.test === test.id);
+    if (testEvent) {
+      this.testStatesEmitter.fire(testEvent);
+    }
   }
 }
