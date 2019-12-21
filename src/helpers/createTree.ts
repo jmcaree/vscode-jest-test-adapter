@@ -128,7 +128,7 @@ const toParseInfo = (result: IParseResults, workspaceRoot: string): ParseInfo =>
     .filter(p => p.length !== 0)
     .reduce(
       (previousValue, currentValue) => {
-        const id = _.join([workspaceRoot, ...previousValue.folders, currentValue], pathSeparator);
+        const id = _.join([workspaceRoot, ...previousValue.folders.map(f => f.name), currentValue], pathSeparator);
 
         return {
           ...previousValue,
