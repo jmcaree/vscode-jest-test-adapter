@@ -11,5 +11,8 @@ export default function pathToJest(workspace: WorkspaceFolder): string {
 }
 
 function pathToLocalJestExecutable(rootDir: string): string {
+  if (process.platform === "win32") {
+    return normalize(resolve(rootDir, "./node_modules/.bin/jest.cmd"));
+  }
   return normalize(resolve(rootDir, "./node_modules/.bin/jest"));
 }

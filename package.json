@@ -39,19 +39,23 @@
     "vscode:prepublish": "tsc"
   },
   "dependencies": {
-    "@babel/traverse": "^7.2.3",
-    "jest-editor-support": "^25.0.1",
-    "micromatch": "^3.1.10",
-    "tslib": "^1.9.3",
-    "vscode-test-adapter-api": "^1.4.0",
-    "vscode-test-adapter-util": "^0.6.3"
+    "@babel/traverse": "^7.7.4",
+    "jest-editor-support": "^27.1.0",
+    "lodash": "^4.17.15",
+    "micromatch": "^4.0.2",
+    "tslib": "^1.10.0",
+    "vscode-test-adapter-api": "^1.7.0",
+    "vscode-test-adapter-util": "^0.7.0"
   },
   "devDependencies": {
-    "@types/micromatch": "^3.1.0",
-    "tslint": "^5.13.1",
-    "typescript": "^3.3.3333",
-    "vsce": "^1.57.1",
-    "vscode": "^1.1.30"
+    "@types/lodash": "^4.14.149",
+    "@types/micromatch": "^3.1.1",
+    "prettier": "^1.19.1",
+    "tslint": "^5.20.1",
+    "tslint-config-prettier": "^1.18.0",
+    "typescript": "^3.7.3",
+    "vsce": "^1.70.0",
+    "vscode": "^1.1.36"
   },
   "engines": {
     "vscode": "^1.23.0"

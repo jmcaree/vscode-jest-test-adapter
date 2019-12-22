@@ -10,8 +10,9 @@
         "--extensionDevelopmentPath=${workspaceFolder}"
       ],
       "outFiles": [
-        "${workspaceFolder}/out"
-      ]
+        "${workspaceFolder}/out/**/*.js"
+      ],
+      "preLaunchTask": "npm"
     }
   ]
 }

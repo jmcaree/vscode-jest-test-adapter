@@ -1,6 +1,6 @@
-import { ProjectWorkspace } from "jest-editor-support";
 import * as vscode from "vscode";
 import {
+  RetireEvent,
   TestAdapter,
   TestEvent,
   TestLoadFinishedEvent,
@@ -10,14 +10,15 @@ import {
   TestSuiteEvent,
 } from "vscode-test-adapter-api";
 import { Log } from "vscode-test-adapter-util";
-import {
-  mapJestAssertionToTestDecorations,
-  mapJestAssertionToTestInfo,
-  mapJestFileResultToTestSuiteInfo,
-  mapJestParseToTestSuiteInfo,
-  mapTestIdsToTestFilter,
-} from "./helpers/mapJestToTestAdapter";
+import { createTree } from "./helpers/createTree";
+import { emitTestCompleteRootNode, emitTestRunningRootNode } from "./helpers/emitTestCompleteRootNode";
+import { filterTree } from "./helpers/filterTree";
+import { mapTestIdsToTestFilter } from "./helpers/mapTestIdsToTestFilter";
+import { mapTreeToSuite } from "./helpers/mapTreeToSuite";
+import { createRootNode, RootNode } from "./helpers/tree";
+import { initProjectWorkspace } from "./initProjectWorkspace";
 import JestManager, { IJestManagerOptions } from "./JestManager";
+import { mapJestTestResultsToTestEvents } from "./mapJestTestResultsToTestEvents";
 import TestLoader from "./TestLoader";
 
 interface IDiposable {
@@ -26,33 +27,16 @@ interface IDiposable {
 
 export type IJestTestAdapterOptions = IJestManagerOptions;
 
-type TestStateCompatibleEvent =
-  | TestRunStartedEvent
-  | TestRunFinishedEvent
-  | TestSuiteEvent
-  | TestEvent;
+type TestStateCompatibleEvent = TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent;
 
 export default class JestTestAdapter implements TestAdapter {
-  get autorun(): vscode.Event<void> | undefined {
-    return this.autorunEmitter.event;
-  }
-
-  get tests(): vscode.Event<TestLoadStartedEvent | TestLoadFinishedEvent> {
-    return this.testsEmitter.event;
-  }
-
-  get testStates(): vscode.Event<TestStateCompatibleEvent> {
-    return this.testStatesEmitter.event;
-  }
+  private isLoadingTests: boolean = false;
+  private isRunningTests: boolean = false;
   private disposables: IDiposable[] = [];
-
-  private readonly testsEmitter = new vscode.EventEmitter<
-    TestLoadStartedEvent | TestLoadFinishedEvent
-  >();
-  private readonly testStatesEmitter = new vscode.EventEmitter<
-    TestStateCompatibleEvent
-  >();
-  private readonly autorunEmitter = new vscode.EventEmitter<void>();
+  private tree: RootNode = createRootNode("root");
+  private readonly testsEmitter = new vscode.EventEmitter<TestLoadStartedEvent | TestLoadFinishedEvent>();
+  private readonly testStatesEmitter = new vscode.EventEmitter<TestStateCompatibleEvent>();
+  private readonly retireEmitter = new vscode.EventEmitter<RetireEvent>();
   private readonly jestManager: JestManager;
 
   constructor(
@@ -66,87 +50,89 @@ export default class JestTestAdapter implements TestAdapter {
 
     this.disposables.push(this.testsEmitter);
     this.disposables.push(this.testStatesEmitter);
-    this.disposables.push(this.autorunEmitter);
+    this.disposables.push(this.retireEmitter);
+  }
+
+  get tests(): vscode.Event<TestLoadStartedEvent | TestLoadFinishedEvent> {
+    return this.testsEmitter.event;
+  }
+
+  get testStates(): vscode.Event<TestStateCompatibleEvent> {
+    return this.testStatesEmitter.event;
+  }
+
+  get retire(): vscode.Event<RetireEvent> {
+    return this.retireEmitter.event;
   }
 
   public async load(): Promise<void> {
-    this.log.info("Loading Jest tests");
+    if (this.isLoadingTests) {
+      this.log.info("Test load in progress, ignoring subsequent call to load tests.");
+      return;
+    }
 
-    const testLoader = new TestLoader(
-      this.log,
-      this.initProjectWorkspace(),
-    );
+    this.isLoadingTests = true;
+    this.log.info("Loading Jest tests...");
 
-    this.testsEmitter.fire({
-      type: "started",
-    } as TestLoadStartedEvent);
+    const testLoader = new TestLoader(this.log, initProjectWorkspace(this.options, this.workspace));
 
-    const parsedResults = await testLoader.loadTests();
-    const suite = mapJestParseToTestSuiteInfo(
-      parsedResults,
-      this.workspace.uri.fsPath,
-    );
+    try {
+      this.testsEmitter.fire({ type: "started" });
 
-    this.testsEmitter.fire({
-      suite,
-      type: "finished",
-    } as TestLoadFinishedEvent);
+      const parsedResults = await testLoader.loadTests();
+
+      this.tree = createTree(parsedResults, this.workspace.uri.fsPath);
+      const suite = mapTreeToSuite(this.tree);
+
+      this.testsEmitter.fire({ suite, type: "finished" });
+    } catch (error) {
+      this.log.error("Error loading tests", JSON.stringify(error));
+      this.testsEmitter.fire({ type: "finished", errorMessage: JSON.stringify(error) });
+    }
+
+    this.retireAllTests();
+
+    this.log.info("Finished loading Jest tests.");
+    this.isLoadingTests = false;
   }
 
   public async run(tests: string[]): Promise<void> {
-    this.log.info(`Running Jest tests ${JSON.stringify(tests)}`);
-
-    this.testStatesEmitter.fire({
-      tests,
-      type: "started",
-    } as TestRunStartedEvent);
-
-    const testFilter = mapTestIdsToTestFilter(tests);
-    const jestResponse = await this.jestManager.runTests(testFilter);
-    if (jestResponse) {
-      const { reconciler, results } = jestResponse;
-      results.testResults.forEach((fileResult) => {
-        this.testStatesEmitter.fire({
-          state: "running",
-          suite: mapJestFileResultToTestSuiteInfo(
-            fileResult,
-            this.workspace.uri.fsPath,
-          ),
-          type: "suite",
-        } as TestSuiteEvent);
-
-        fileResult.assertionResults.forEach((assertionResult) => {
-          this.testStatesEmitter.fire({
-            decorations: mapJestAssertionToTestDecorations(
-              assertionResult,
-              fileResult.name,
-              reconciler,
-            ),
-            state: assertionResult.status,
-            test: mapJestAssertionToTestInfo(assertionResult, fileResult),
-            type: "test",
-          } as TestEvent);
-        });
-
-        this.testStatesEmitter.fire({
-          state: "completed",
-          suite: mapJestFileResultToTestSuiteInfo(
-            fileResult,
-            this.workspace.uri.fsPath,
-          ),
-          type: "suite",
-        } as TestSuiteEvent);
-      });
-
-      this.testStatesEmitter.fire({
-        type: "finished",
-      } as TestRunFinishedEvent);
-    } else {
-      // Test run was canceled
-      this.testStatesEmitter.fire({
-        type: "finished",
-      } as TestRunFinishedEvent);
+    if (this.isRunningTests) {
+      this.log.info("Test run in progress, ignoring subsequent call to run tests.");
+      return;
     }
+
+    this.log.info(`Running Jest tests... ${JSON.stringify(tests)}`);
+    this.isRunningTests = true;
+    this.testStatesEmitter.fire({ tests, type: "started" });
+
+    try {
+      const testFilter = mapTestIdsToTestFilter(tests);
+
+      const eventEmitter = (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) =>
+        this.testStatesEmitter.fire(data);
+
+      // we emit events to notify which tests we are running.
+      const filteredTree = filterTree(this.tree, tests);
+      emitTestRunningRootNode(filteredTree, eventEmitter);
+
+      // begin running the tests in Jest.
+      const jestResponse = await this.jestManager.runTests(testFilter);
+
+      if (jestResponse) {
+        // map the test results to TestEvents
+        const testEvents = mapJestTestResultsToTestEvents(jestResponse);
+
+        // emit the completion events.
+        emitTestCompleteRootNode(filteredTree, testEvents, eventEmitter);
+      }
+    } catch (error) {
+      this.log.error("Error running tests", JSON.stringify(error));
+    }
+
+    this.log.info("Finished loading Jest tests.");
+    this.isRunningTests = false;
+    this.testStatesEmitter.fire({ type: "finished" });
   }
 
   public async debug(tests: string[]): Promise<void> {
@@ -191,17 +177,10 @@ export default class JestTestAdapter implements TestAdapter {
     this.disposables = [];
   }
 
-  private initProjectWorkspace(): ProjectWorkspace {
-    const configPath = this.options.pathToConfig(this.workspace);
-    const jestPath = this.options.pathToJest(this.workspace);
-    return new ProjectWorkspace(
-      this.workspace.uri.fsPath,
-      jestPath,
-      configPath,
-      // TOOD: lookup version used in project
-      20,
-      false,
-      false,
-    );
+  /**
+   * Marks all tests as retired.
+   */
+  private retireAllTests() {
+    this.retireEmitter.fire({});
   }
 }

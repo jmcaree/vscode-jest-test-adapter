@@ -10,20 +10,20 @@ function getJestAdapterOptions(): IJestTestAdapterOptions {
   const pathToJest = (w: vscode.WorkspaceFolder) => {
     return (
       vscode.workspace
-        .getConfiguration("jestTestExplorer")
+        .getConfiguration("jestTestExplorer", null)
         .get<string>("pathToJest") || pathToJestHelper(w)
     );
   };
   const pathToConfig = () => {
     return (
       vscode.workspace
-        .getConfiguration("jestTestExplorer")
+        .getConfiguration("jestTestExplorer", null)
         .get<string>("pathToJestConfig") || pathToConfigHelper()
     );
   };
   return {
     debugOutput: vscode.workspace
-      .getConfiguration("jestTestExplorer")
+      .getConfiguration("jestTestExplorer", null)
       .get<DebugOutput>("debugOutput", DebugOutput.internalConsole),
     pathToConfig,
     pathToJest,
@@ -41,6 +41,8 @@ export async function activate(context: vscode.ExtensionContext) {
     "Jest Test Explorer Log",
   );
   context.subscriptions.push(log);
+
+  log.info("Jest Test Explorer activated");
 
   // get the Test Explorer extension
   const testExplorerExtension = vscode.extensions.getExtension<TestHub>(

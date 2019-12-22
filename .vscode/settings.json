@@ -3,5 +3,9 @@
     ".git": true,
     "node_modules": true,
     "out": true
-  }
+  },
+  "editor.rulers": [
+    120
+  ],
+  "editor.tabSize": 2
 }
