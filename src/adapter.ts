@@ -37,7 +37,6 @@ export default class JestTestAdapter implements TestAdapter {
   private readonly testsEmitter = new vscode.EventEmitter<TestLoadStartedEvent | TestLoadFinishedEvent>();
   private readonly testStatesEmitter = new vscode.EventEmitter<TestStateCompatibleEvent>();
   private readonly retireEmitter = new vscode.EventEmitter<RetireEvent>();
-  private readonly autorunEmitter = new vscode.EventEmitter<void>();
   private readonly jestManager: JestManager;
 
   constructor(
@@ -52,11 +51,6 @@ export default class JestTestAdapter implements TestAdapter {
     this.disposables.push(this.testsEmitter);
     this.disposables.push(this.testStatesEmitter);
     this.disposables.push(this.retireEmitter);
-    this.disposables.push(this.autorunEmitter);
-  }
-
-  get autorun(): vscode.Event<void> | undefined {
-    return this.autorunEmitter.event;
   }
 
   get tests(): vscode.Event<TestLoadStartedEvent | TestLoadFinishedEvent> {
