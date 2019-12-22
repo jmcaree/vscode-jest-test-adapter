@@ -1,4 +1,3 @@
-import _ from "lodash";
 import * as vscode from "vscode";
 import {
   RetireEvent,
@@ -12,15 +11,14 @@ import {
 } from "vscode-test-adapter-api";
 import { Log } from "vscode-test-adapter-util";
 import { createTree } from "./helpers/createTree";
-import { emitTestCompleteRootNode, emitTestRunningRootNode } from './helpers/emitTestCompleteRootNode';
+import { emitTestCompleteRootNode, emitTestRunningRootNode } from "./helpers/emitTestCompleteRootNode";
 import { filterTree } from "./helpers/filterTree";
-import { mapAssertionResultToTestId } from "./helpers/mapAssertionResultToTestId";
-import { mapJestAssertionToTestDecorations } from "./helpers/mapJestAssertionToTestDecorations";
 import { mapTestIdsToTestFilter } from "./helpers/mapTestIdsToTestFilter";
 import { mapTreeToSuite } from "./helpers/mapTreeToSuite";
 import { createRootNode, RootNode } from "./helpers/tree";
-import { initProjectWorkspace } from './initProjectWorkspace';
+import { initProjectWorkspace } from "./initProjectWorkspace";
 import JestManager, { IJestManagerOptions } from "./JestManager";
+import { mapJestTestResultsToTestEvents } from "./mapJestTestResultsToTestEvents";
 import TestLoader from "./TestLoader";
 
 interface IDiposable {
@@ -89,9 +87,8 @@ export default class JestTestAdapter implements TestAdapter {
 
       const parsedResults = await testLoader.loadTests();
 
-      const tree = createTree(parsedResults, this.workspace.uri.fsPath);
-      this.tree = tree;
-      const suite = mapTreeToSuite(tree);
+      this.tree = createTree(parsedResults, this.workspace.uri.fsPath);
+      const suite = mapTreeToSuite(this.tree);
 
       this.testsEmitter.fire({ suite, type: "finished" });
     } catch (error) {
@@ -129,23 +126,8 @@ export default class JestTestAdapter implements TestAdapter {
       const jestResponse = await this.jestManager.runTests(testFilter);
 
       if (jestResponse) {
-        const { reconciler, results } = jestResponse;
-
         // map the test results to TestEvents
-        const testEvents = _.chain(results.testResults)
-          .flatMap(fileResult =>
-            fileResult.assertionResults.map(
-              assertionResult =>
-                ({
-                  decorations: mapJestAssertionToTestDecorations(assertionResult, fileResult.name, reconciler),
-                  message: assertionResult.failureMessages.join("\n"),
-                  state: assertionResult.status,
-                  test: mapAssertionResultToTestId(assertionResult, fileResult.name),
-                  type: "test",
-                } as TestEvent),
-            ),
-          )
-          .value();
+        const testEvents = mapJestTestResultsToTestEvents(jestResponse);
 
         // emit the completion events.
         emitTestCompleteRootNode(filteredTree, testEvents, eventEmitter);
