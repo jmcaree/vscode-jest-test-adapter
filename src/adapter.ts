@@ -134,11 +134,10 @@ export default class JestTestAdapter implements TestAdapter {
               assertionResult =>
                 ({
                   decorations: mapJestAssertionToTestDecorations(assertionResult, fileResult.name, reconciler),
+                  message: assertionResult.failureMessages.join("\n"),
                   state: assertionResult.status,
                   test: mapAssertionResultToTestId(assertionResult, fileResult.name),
                   type: "test",
-                  // TODO we should use the 'message' property to display detailed error messages.
-                  // message: "error message here."
                 } as TestEvent),
             ),
           )
