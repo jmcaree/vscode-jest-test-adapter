@@ -13,12 +13,13 @@ import {
 } from "vscode-test-adapter-api";
 import { Log } from "vscode-test-adapter-util";
 import { createTree } from "./helpers/createTree";
-import { filterTree } from './helpers/filterTree';
+import { emitTestCompleteRootNode, emitTestRunningRootNode } from './helpers/emitTestCompleteRootNode';
+import { filterTree } from "./helpers/filterTree";
 import { mapAssertionResultToTestId } from "./helpers/mapAssertionResultToTestId";
 import { mapJestAssertionToTestDecorations } from "./helpers/mapJestAssertionToTestDecorations";
 import { mapTestIdsToTestFilter } from "./helpers/mapTestIdsToTestFilter";
 import { mapTreeToSuite } from "./helpers/mapTreeToSuite";
-import { createRootNode, DescribeNode, FileNode, FolderNode, RootNode, TestNode } from "./helpers/tree";
+import { createRootNode, RootNode } from "./helpers/tree";
 import JestManager, { IJestManagerOptions } from "./JestManager";
 import TestLoader from "./TestLoader";
 
@@ -117,9 +118,12 @@ export default class JestTestAdapter implements TestAdapter {
     try {
       const testFilter = mapTestIdsToTestFilter(tests);
 
+      const eventEmitter = (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) =>
+        this.testStatesEmitter.fire(data);
+
       // we emit events to notify which tests we are running.
       const filteredTree = filterTree(this.tree, tests);
-      this.emitTestRunningRootNode(filteredTree);
+      emitTestRunningRootNode(filteredTree, eventEmitter);
 
       // begin running the tests in Jest.
       const jestResponse = await this.jestManager.runTests(testFilter);
@@ -144,7 +148,7 @@ export default class JestTestAdapter implements TestAdapter {
           .value();
 
         // emit the completion events.
-        this.emitTestCompleteRootNode(filteredTree, testEvents);
+        emitTestCompleteRootNode(filteredTree, testEvents, eventEmitter);
       }
     } catch (error) {
       this.log.error("Error running tests", JSON.stringify(error));
@@ -216,104 +220,5 @@ export default class JestTestAdapter implements TestAdapter {
       undefined,
       false,
     );
-  }
-
-  private emitTestRunningRootNode(root: RootNode) {
-    this.testStatesEmitter.fire({
-      state: "running",
-      suite: root.id,
-      type: "suite",
-    });
-
-    root.folders.forEach(f => this.emitTestRunningFolder(f));
-    root.files.forEach(f => this.emitTestRunningFile(f));
-  }
-
-  private emitTestRunningFolder(folder: FolderNode) {
-    this.testStatesEmitter.fire({
-      state: "running",
-      suite: folder.id,
-      type: "suite",
-    });
-
-    folder.folders.forEach(f => this.emitTestRunningFolder(f));
-    folder.files.forEach(f => this.emitTestRunningFile(f));
-  }
-
-  private emitTestRunningFile(file: FileNode) {
-    this.testStatesEmitter.fire({
-      state: "running",
-      suite: file.id,
-      type: "suite",
-    });
-
-    file.describeBlocks.forEach(d => this.emitTestRunningDescribe(d));
-    file.tests.forEach(t => this.emitTestRunningTest(t));
-  }
-
-  private emitTestRunningDescribe(describe: DescribeNode) {
-    this.testStatesEmitter.fire({
-      state: "running",
-      suite: describe.id,
-      type: "suite",
-    });
-    describe.tests.forEach(t => this.emitTestRunningTest(t));
-  }
-
-  private emitTestRunningTest(test: TestNode) {
-    this.testStatesEmitter.fire({
-      state: "running",
-      test: test.id,
-      type: "test",
-    });
-  }
-
-  private emitTestCompleteRootNode(root: RootNode, testEvents: TestEvent[]) {
-    this.testStatesEmitter.fire({
-      state: "completed",
-      suite: root.id,
-      type: "suite",
-    });
-
-    root.folders.forEach(f => this.emitTestCompleteFolder(f, testEvents));
-    root.files.forEach(f => this.emitTestCompleteFile(f, testEvents));
-  }
-
-  private emitTestCompleteFolder(folder: FolderNode, testEvents: TestEvent[]) {
-    this.testStatesEmitter.fire({
-      state: "completed",
-      suite: folder.id,
-      type: "suite",
-    });
-
-    folder.folders.forEach(f => this.emitTestCompleteFolder(f, testEvents));
-    folder.files.forEach(f => this.emitTestCompleteFile(f, testEvents));
-  }
-
-  private emitTestCompleteFile(file: FileNode, testEvents: TestEvent[]) {
-    this.testStatesEmitter.fire({
-      state: "completed",
-      suite: file.id,
-      type: "suite",
-    });
-
-    file.describeBlocks.forEach(d => this.emitTestCompleteDescribe(d, testEvents));
-    file.tests.forEach(t => this.emitTestCompleteTest(t, testEvents));
-  }
-
-  private emitTestCompleteDescribe(describe: DescribeNode, testEvents: TestEvent[]) {
-    this.testStatesEmitter.fire({
-      state: "completed",
-      suite: describe.id,
-      type: "suite",
-    });
-    describe.tests.forEach(t => this.emitTestCompleteTest(t, testEvents));
-  }
-
-  private emitTestCompleteTest(test: TestNode, testEvents: TestEvent[]) {
-    const testEvent = testEvents.find(e => e.test === test.id);
-    if (testEvent) {
-      this.testStatesEmitter.fire(testEvent);
-    }
   }
 }
