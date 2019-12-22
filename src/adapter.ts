@@ -1,4 +1,3 @@
-import { ProjectWorkspace } from "jest-editor-support";
 import _ from "lodash";
 import * as vscode from "vscode";
 import {
@@ -20,6 +19,7 @@ import { mapJestAssertionToTestDecorations } from "./helpers/mapJestAssertionToT
 import { mapTestIdsToTestFilter } from "./helpers/mapTestIdsToTestFilter";
 import { mapTreeToSuite } from "./helpers/mapTreeToSuite";
 import { createRootNode, RootNode } from "./helpers/tree";
+import { initProjectWorkspace } from './initProjectWorkspace';
 import JestManager, { IJestManagerOptions } from "./JestManager";
 import TestLoader from "./TestLoader";
 
@@ -82,7 +82,7 @@ export default class JestTestAdapter implements TestAdapter {
     this.isLoadingTests = true;
     this.log.info("Loading Jest tests...");
 
-    const testLoader = new TestLoader(this.log, this.initProjectWorkspace());
+    const testLoader = new TestLoader(this.log, initProjectWorkspace(this.options, this.workspace));
 
     try {
       this.testsEmitter.fire({ type: "started" });
@@ -91,7 +91,7 @@ export default class JestTestAdapter implements TestAdapter {
 
       const tree = createTree(parsedResults, this.workspace.uri.fsPath);
       this.tree = tree;
-      const suite = mapTreeToSuite(tree); // mapJestParseToTestSuiteInfo(parsedResults, this.workspace.uri.fsPath);
+      const suite = mapTreeToSuite(tree);
 
       this.testsEmitter.fire({ suite, type: "finished" });
     } catch (error) {
@@ -206,19 +206,5 @@ export default class JestTestAdapter implements TestAdapter {
    */
   private retireAllTests() {
     this.retireEmitter.fire({});
-  }
-
-  private initProjectWorkspace(): ProjectWorkspace {
-    const configPath = this.options.pathToConfig(this.workspace);
-    const jestPath = this.options.pathToJest(this.workspace);
-    return new ProjectWorkspace(
-      this.workspace.uri.fsPath,
-      jestPath,
-      configPath,
-      // TODO: lookup version used in project
-      20,
-      undefined,
-      false,
-    );
   }
 }
