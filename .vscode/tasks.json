@@ -10,7 +10,7 @@
     "showReuseMessage": true,
     "clear": false
   },
-  "args": ["run", "build"],
+  "args": ["run", "webpack-dev"],
   "isBackground": true,
   "problemMatcher": "$tsc-watch"
 }

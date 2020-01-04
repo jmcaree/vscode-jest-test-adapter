@@ -28,19 +28,21 @@
     "testing",
     "jest"
   ],
-  "main": "out/main.js",
+  "main": "dist/extension.js",
   "scripts": {
     "postinstall": "node ./node_modules/vscode/bin/install",
-    "clean": "rimraf out *.vsix",
-    "build": "tsc",
-    "watch": "tsc -w",
+    "build": "npm run webpack-prod",
+    "clean": "rimraf out dist build junit.xml coverage *.vsix",
     "rebuild": "npm run clean && npm run build",
     "package": "mkdir build && vsce package -o build/vscode-jest-test-adapter.vsix",
     "publish": "vsce publish",
     "test": "jest",
     "test-ci": "jest --ci --reporters=jest-junit --reporters=default --coverage --coverageReporters=cobertura --coverageReporters=html",
     "test-watch": "jest --watch",
-    "vscode:prepublish": "tsc"
+    "vscode:prepublish": "npm run webpack-prod",
+    "webpack-prod": "webpack --mode production",
+    "webpack-dev": "webpack --mode development",
+    "webpack-watch": "webpack --mode development --watch"
   },
   "dependencies": {
     "@babel/traverse": "^7.7.4",
@@ -55,15 +57,21 @@
     "@types/jest": "^24.0.25",
     "@types/lodash": "^4.14.149",
     "@types/micromatch": "^3.1.1",
+    "@types/node": "^13.1.4",
+    "@types/webpack": "^4.41.1",
     "jest": "^24.9.0",
     "jest-junit": "^10.0.0",
     "prettier": "^1.19.1",
     "ts-jest": "^24.2.0",
+    "ts-loader": "^6.2.1",
+    "ts-node": "^8.5.4",
     "tslint": "^5.20.1",
     "tslint-config-prettier": "^1.18.0",
     "typescript": "^3.7.3",
     "vsce": "^1.70.0",
-    "vscode": "^1.1.36"
+    "vscode": "^1.1.36",
+    "webpack": "^4.41.5",
+    "webpack-cli": "^3.3.10"
   },
   "engines": {
     "vscode": "^1.23.0"

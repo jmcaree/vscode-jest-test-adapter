@@ -1,10 +1,12 @@
-src/**
-**/*.map
-package-lock.json
-tsconfig.json
-tslint.json
-.vscode/**
-coverage/**
-.gitignore
-azure-pipelines.yml
-**/junit.xml
+# ignore everything
+**/*
+
+# include dist and images folders
+!dist/**/*
+!img/**/*
+
+# include the needed files.
+!icon.png
+!package.json
+!README.md
+!LICENSE.txt
