@@ -1,6 +1,12 @@
-src/**
-**/*.map
-package-lock.json
-tsconfig.json
-.vscode/**
-.gitignore
+# ignore everything
+**/*
+
+# include dist and images folders
+!dist/**/*
+!img/**/*
+
+# include the needed files.
+!icon.png
+!package.json
+!README.md
+!LICENSE.txt
