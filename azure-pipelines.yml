@@ -18,6 +18,23 @@ steps:
 - script: npm run build
   displayName: 'Build'
 
+- script: npm run test-ci
+  displayName: 'Run Jest Tests'
+
+# https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/test/publish-test-results?view=azure-devops&tabs=yaml
+- task: PublishTestResults@2
+  inputs:
+    testResultsFormat: 'JUnit'
+    testResultsFiles: '**/junit.xml' 
+    failTaskOnFailedTests: true
+
+# https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/test/publish-code-coverage-results?view=azure-devops
+- task: PublishCodeCoverageResults@1
+  inputs:
+    codeCoverageTool: 'cobertura'
+    summaryFileLocation: $(System.DefaultWorkingDirectory)/coverage/cobertura-coverage.xml
+    failIfCoverageEmpty: true
+
 - script: npm run package
   displayName: 'Package'
 

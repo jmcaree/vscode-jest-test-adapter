@@ -2,5 +2,9 @@ src/**
 **/*.map
 package-lock.json
 tsconfig.json
+tslint.json
 .vscode/**
+coverage/**
 .gitignore
+azure-pipelines.yml
+**/junit.xml

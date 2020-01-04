@@ -4,20 +4,21 @@
   "description": "Run your Jest tests in the Sidebar of Visual Studio Code",
   "icon": "icon.png",
   "author": "Tyler Benfield <rtbenfield@gmail.com>",
-  "publisher": "rtbenfield",
+  "publisher": "kavod-io",
   "contributors": [
-    "Craig Fleming (https://github.com/rythos42)"
+    "Craig Fleming (https://github.com/rythos42)",
+    "Ross Knudsen (https://github.com/rossknudsen)"
   ],
   "version": "0.2.0",
   "preview": true,
   "license": "MIT",
-  "homepage": "https://github.com/rtbenfield/vscode-jest-test-adapter",
+  "homepage": "https://github.com/kavod-io/vscode-jest-test-adapter",
   "repository": {
     "type": "git",
-    "url": "https://github.com/rtbenfield/vscode-jest-test-adapter.git"
+    "url": "https://github.com/kavod-io/vscode-jest-test-adapter.git"
   },
   "bugs": {
-    "url": "https://github.com/rtbenfield/vscode-jest-test-adapter/issues"
+    "url": "https://github.com/kavod-io/vscode-jest-test-adapter/issues"
   },
   "categories": [
     "Other"
@@ -36,6 +37,9 @@
     "rebuild": "npm run clean && npm run build",
     "package": "mkdir build && vsce package -o build/vscode-jest-test-adapter.vsix",
     "publish": "vsce publish",
+    "test": "jest",
+    "test-ci": "jest --ci --reporters=jest-junit --reporters=default --coverage --coverageReporters=cobertura --coverageReporters=html",
+    "test-watch": "jest --watch",
     "vscode:prepublish": "tsc"
   },
   "dependencies": {
@@ -48,9 +52,13 @@
     "vscode-test-adapter-util": "^0.7.0"
   },
   "devDependencies": {
+    "@types/jest": "^24.0.25",
     "@types/lodash": "^4.14.149",
     "@types/micromatch": "^3.1.1",
+    "jest": "^24.9.0",
+    "jest-junit": "^10.0.0",
     "prettier": "^1.19.1",
+    "ts-jest": "^24.2.0",
     "tslint": "^5.20.1",
     "tslint-config-prettier": "^1.18.0",
     "typescript": "^3.7.3",
