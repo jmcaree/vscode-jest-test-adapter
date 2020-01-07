@@ -1,21 +1,23 @@
-export interface Node {
+interface NodeBase {
   id: string;
   label: string;
 }
 
-export interface RootNode extends Node {
+export type Node = RootNode | FolderNode | FileNode | DescribeNode | TestNode;
+
+export interface RootNode extends NodeBase {
   type: "root";
   folders: FolderNode[];
   files: FileNode[];
 }
 
-export interface FolderNode extends Node {
+export interface FolderNode extends NodeBase {
   type: "folder";
   folders: FolderNode[];
   files: FileNode[];
 }
 
-export interface FileNode extends Node {
+export interface FileNode extends NodeBase {
   type: "file";
   describeBlocks: DescribeNode[];
   tests: TestNode[];
@@ -23,7 +25,7 @@ export interface FileNode extends Node {
   line: number;
 }
 
-export interface DescribeNode extends Node {
+export interface DescribeNode extends NodeBase {
   describeBlocks: DescribeNode[];
   type: "describe";
   tests: TestNode[];
@@ -31,7 +33,7 @@ export interface DescribeNode extends Node {
   line: number;
 }
 
-export interface TestNode extends Node {
+export interface TestNode extends NodeBase {
   type: "test";
   file: string;
   line: number;
