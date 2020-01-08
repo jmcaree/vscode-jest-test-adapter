@@ -121,7 +121,7 @@ export default class JestTestAdapter implements TestAdapter {
 
       if (jestResponse) {
         // map the test results to TestEvents
-        const testEvents = mapJestTestResultsToTestEvents(jestResponse);
+        const testEvents = mapJestTestResultsToTestEvents(jestResponse, filteredTree);
 
         // emit the completion events.
         emitTestCompleteRootNode(filteredTree, testEvents, eventEmitter);
