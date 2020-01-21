@@ -1,3 +1,4 @@
+import { getSettings } from "jest-editor-support";
 import * as vscode from "vscode";
 import {
   RetireEvent,
@@ -10,7 +11,6 @@ import {
   TestSuiteEvent,
 } from "vscode-test-adapter-api";
 import { Log } from "vscode-test-adapter-util";
-import { createTree } from "./helpers/createTree";
 import { emitTestCompleteRootNode, emitTestRunningRootNode } from "./helpers/emitTestCompleteRootNode";
 import { filterTree } from "./helpers/filterTree";
 import { initProjectWorkspace } from "./helpers/initProjectWorkspace";
@@ -20,10 +20,7 @@ import { mapTreeToSuite } from "./helpers/mapTreeToSuite";
 import { createRootNode, RootNode } from "./helpers/tree";
 import JestManager, { IJestManagerOptions } from "./JestManager";
 import TestLoader from "./TestLoader";
-
-interface IDiposable {
-  dispose(): void;
-}
+import { EnvironmentChangedEvent, IDisposable } from "./types";
 
 export type IJestTestAdapterOptions = IJestManagerOptions;
 
@@ -32,12 +29,14 @@ type TestStateCompatibleEvent = TestRunStartedEvent | TestRunFinishedEvent | Tes
 export default class JestTestAdapter implements TestAdapter {
   private isLoadingTests: boolean = false;
   private isRunningTests: boolean = false;
-  private disposables: IDiposable[] = [];
+  private disposables: IDisposable[] = [];
   private tree: RootNode = createRootNode("root");
   private readonly testsEmitter = new vscode.EventEmitter<TestLoadStartedEvent | TestLoadFinishedEvent>();
   private readonly testStatesEmitter = new vscode.EventEmitter<TestStateCompatibleEvent>();
   private readonly retireEmitter = new vscode.EventEmitter<RetireEvent>();
   private readonly jestManager: JestManager;
+  private testLoader: TestLoader | null = null;
+  private settingsPromise: Promise<void>;
 
   constructor(
     public readonly workspace: vscode.WorkspaceFolder,
@@ -47,6 +46,20 @@ export default class JestTestAdapter implements TestAdapter {
     this.log.info("Initializing Jest adapter");
 
     this.jestManager = new JestManager(workspace, options);
+
+    const projectWorkspace = initProjectWorkspace(this.options, this.workspace);
+
+    this.log.info(`Loading Jest settings from ${projectWorkspace.pathToConfig}...`);
+    this.settingsPromise = getSettings(projectWorkspace)
+      .then(settings => {
+        this.testLoader = new TestLoader(settings, this.log, projectWorkspace);
+
+        this.disposables.push(this.testLoader.environmentChange(e => this.handleEnvironmentChange(e), this));
+        this.disposables.push(this.testLoader);
+
+        this.log.info(`Finished loading Jest settings.`);
+      })
+      .catch(error => this.log.error("Failed to load Jest settings.", error));
 
     this.disposables.push(this.testsEmitter);
     this.disposables.push(this.testStatesEmitter);
@@ -71,17 +84,26 @@ export default class JestTestAdapter implements TestAdapter {
       return;
     }
 
+    // check if the test loader has been initialized and if not, then do so.
+    if (!this.testLoader) {
+      if (this.settingsPromise) {
+        await this.settingsPromise;
+      }
+
+      if (!this.testLoader) {
+        this.log.error("Attempted to load tests when Test Loader has not been initialized.");
+        return;
+      }
+    }
+
     this.isLoadingTests = true;
     this.log.info("Loading Jest tests...");
-
-    const testLoader = new TestLoader(this.log, initProjectWorkspace(this.options, this.workspace));
 
     try {
       this.testsEmitter.fire({ type: "started" });
 
-      const parsedResults = await testLoader.loadTests();
-
-      this.tree = createTree(parsedResults, this.workspace.uri.fsPath);
+      const state = await this.testLoader.getTestState();
+      this.tree = state.suite;
       const suite = mapTreeToSuite(this.tree);
 
       this.testsEmitter.fire({ suite, type: "finished" });
@@ -175,6 +197,32 @@ export default class JestTestAdapter implements TestAdapter {
       disposable.dispose();
     }
     this.disposables = [];
+  }
+
+  private handleEnvironmentChange(e: EnvironmentChangedEvent) {
+    switch (e.type) {
+      case "App":
+        this.retireTestFiles(e.invalidatedTestIds);
+        break;
+
+      case "Test":
+        // TODO we can use the event information to update the current state without calling this.load()
+        this.load().then(() => this.retireTestFiles(e.invalidatedTestIds));
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  /**
+   * Invalidates all the tests for the given files.  This works because the file paths are used ids for the tests suites.
+   * @param testFiles The files to invalidate the results for.
+   */
+  private retireTestFiles(testFiles: string[]) {
+    this.retireEmitter.fire({
+      tests: testFiles,
+    });
   }
 
   /**
