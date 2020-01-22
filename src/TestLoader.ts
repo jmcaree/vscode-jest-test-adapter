@@ -2,7 +2,7 @@ import { JestSettings, ProjectWorkspace } from "jest-editor-support";
 import _ from "lodash";
 import * as vscode from "vscode";
 import { Log } from "vscode-test-adapter-util";
-import { createTree } from "./helpers/createTree";
+import { createTree, mergeTree } from "./helpers/createTree";
 import deleteFileFromTree from "./helpers/deleteFileFromTree";
 import { createRootNode, RootNode } from "./helpers/tree";
 import TestParser, { createMatcher } from "./TestParser";
@@ -101,31 +101,29 @@ class TestLoader {
   }
 
   private async handleCreatedFile(uri: vscode.Uri, matcher: Matcher) {
-    const fileType = getFileType(uri.fsPath, matcher);
+    const filePath = uri.fsPath;
+    const fileType = getFileType(filePath, matcher);
     switch (fileType) {
       case "App":
         // if we have created a new application file, we'll assume for now that no tests are affected.
         break;
 
       case "Test":
-        this.testFiles.add(uri.fsPath);
-        // TODO do not call getTestState.
-        // parse the new file and merge with the rest of the suite.
-        this.getTestState(true).then(({ suite }) =>
-          this.environmentChangedEmitter.fire({
-            ...getDefaultTestEnvironmentChangedEvent(this.testFiles, suite),
-            addedTestFiles: [uri.fsPath],
-          }),
-        );
-        break;
-
-      default:
+        this.testFiles.add(filePath);
+        const parseResults = this.testParser.parseFiles([filePath]);
+        this.tree = mergeTree(this.tree, parseResults, this.projectWorkspace.rootPath);
+        this.environmentChangedEmitter.fire({
+          ...getDefaultTestEnvironmentChangedEvent(this.testFiles, this.tree),
+          addedTestFiles: [filePath],
+          invalidatedTestIds: [filePath],
+        });
         break;
     }
   }
 
   private async handleDeletedFile(uri: vscode.Uri, matcher: Matcher) {
-    const fileType = getFileType(uri.fsPath, matcher);
+    const filePath = uri.fsPath;
+    const fileType = getFileType(filePath, matcher);
     switch (fileType) {
       case "App":
         // we'll invalidate all files now when an application file is removed, since we don't know which tests might be
@@ -137,22 +135,20 @@ class TestLoader {
         break;
 
       case "Test":
-        this.testFiles.delete(uri.fsPath);
-        this.tree = deleteFileFromTree(this.tree, uri.fsPath);
+        this.testFiles.delete(filePath);
+        this.tree = deleteFileFromTree(this.tree, filePath);
         this.environmentChangedEmitter.fire({
           ...getDefaultTestEnvironmentChangedEvent(this.testFiles, this.tree),
-          invalidatedTestIds: [uri.fsPath],
-          removedTestFiles: [uri.fsPath],
+          invalidatedTestIds: [filePath],
+          removedTestFiles: [filePath],
         });
-        break;
-
-      default:
         break;
     }
   }
 
   private async handleChangedFile(uri: vscode.Uri, matcher: Matcher) {
-    const fileType = getFileType(uri.fsPath, matcher);
+    const filePath = uri.fsPath;
+    const fileType = getFileType(filePath, matcher);
     switch (fileType) {
       case "App":
         // we'll invalidate all files now when an application file is changed, since we don't know which tests might be
@@ -164,19 +160,15 @@ class TestLoader {
         break;
 
       case "Test":
-        this.testFiles.add(uri.fsPath);
-        // TODO we should optimise this behaviour where we just add the new file info to the existing suite.
-        // TODO do not call getTestState.
-        // parse the modified file and merge it with the rest of the tree.
-        this.getTestState(true).then(({ suite }) =>
-          this.environmentChangedEmitter.fire({
-            ...getDefaultTestEnvironmentChangedEvent(this.testFiles, suite),
-            modifiedTestFiles: [uri.fsPath],
-          }),
-        );
-        break;
-
-      default:
+        this.testFiles.add(filePath);
+        const parseResults = this.testParser.parseFiles([filePath]);
+        // Removing the file from the tree and then merge it back in should correctly update the tree.
+        this.tree = mergeTree(deleteFileFromTree(this.tree, filePath), parseResults, this.projectWorkspace.rootPath);
+        this.environmentChangedEmitter.fire({
+          ...getDefaultTestEnvironmentChangedEvent(this.testFiles, this.tree),
+          invalidatedTestIds: [filePath],
+          modifiedTestFiles: [filePath],
+        });
         break;
     }
   }

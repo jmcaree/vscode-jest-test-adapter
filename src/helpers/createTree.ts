@@ -41,6 +41,10 @@ type Describe = Omit<DescribeBlock, "filter" | "addChild"> & { describeBlocks: D
  */
 const createTree = (parseResults: IParseResults[], workspaceRoot: string): RootNode => {
   const root: RootNode = createRootNode(workspaceRoot);
+  return mergeTree(root, parseResults, workspaceRoot);
+}
+
+const mergeTree = (tree: RootNode, parseResults: IParseResults[], workspaceRoot: string): RootNode => {
   const infos = _.chain(parseResults)
     .map(x => toParseInfo(x, workspaceRoot))
     .sortBy(x => x.folders.length > 0)
@@ -50,7 +54,7 @@ const createTree = (parseResults: IParseResults[], workspaceRoot: string): RootN
     const { file, describeBlocks, itBlocks } = info.parseResult;
 
     // process all the folder nodes...
-    let currentFolderNode: RootNode | FolderNode = root;
+    let currentFolderNode: RootNode | FolderNode = tree;
     info.folders.forEach(f => {
       const existingFolderNode = currentFolderNode.folders.find(n => n.id === f.id);
       // create folder node and set current node to new node.
@@ -76,11 +80,12 @@ const createTree = (parseResults: IParseResults[], workspaceRoot: string): RootN
       file,
     );
 
+    // TODO make immutable.
     fileNode.describeBlocks = nestedDescribeBlocks;
     fileNode.tests = standaloneTests;
   });
 
-  return root;
+  return tree;
 };
 
 const toParseInfo = (result: IParseResults, workspaceRoot: string): ParseInfo => {
@@ -230,4 +235,4 @@ const isNested = (potentialChild: Describe | ItBlock, containingDescribe: Descri
   return startIsBefore && endIsAfter;
 };
 
-export { createTree };
+export { createTree, mergeTree };
