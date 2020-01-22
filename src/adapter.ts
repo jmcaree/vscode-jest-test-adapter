@@ -102,7 +102,7 @@ export default class JestTestAdapter implements TestAdapter {
     try {
       this.testsEmitter.fire({ type: "started" });
 
-      const state = await this.testLoader.getTestState();
+      const state = await this.testLoader.getTestState(true);
       this.tree = state.suite;
       const suite = mapTreeToSuite(this.tree);
 
@@ -189,6 +189,8 @@ export default class JestTestAdapter implements TestAdapter {
   public cancel(): void {
     this.log.info("Closing all active Jest processes");
     this.jestManager.closeAllActiveProcesses();
+
+    // TODO cancel other processes.
   }
 
   public dispose(): void {
@@ -206,8 +208,20 @@ export default class JestTestAdapter implements TestAdapter {
         break;
 
       case "Test":
-        // TODO we can use the event information to update the current state without calling this.load()
-        this.load().then(() => this.retireTestFiles(e.invalidatedTestIds));
+        try {
+          this.log.info("Loading Jest tests...");
+
+          this.testsEmitter.fire({ type: "started" });
+
+          this.tree = e.updatedSuite;
+          const suite = mapTreeToSuite(this.tree);
+          this.retireTestFiles(e.invalidatedTestIds);
+
+          this.testsEmitter.fire({ suite, type: "finished" });
+        } catch (error) {
+          this.log.error("Error loading tests", JSON.stringify(error));
+          this.testsEmitter.fire({ type: "finished", errorMessage: JSON.stringify(error) });
+        }
         break;
 
       default:

@@ -1,4 +1,4 @@
-import { DescribeBlock, IParseResults, ItBlock, ParsedNodeTypes, Location } from "jest-editor-support";
+import { DescribeBlock, IParseResults, ItBlock, Location, ParsedNodeTypes } from "jest-editor-support";
 import _ from "lodash";
 import { parse, sep as pathSeparator } from "path";
 import { DESCRIBE_ID_SEPARATOR, TEST_ID_SEPARATOR } from "../constants";
