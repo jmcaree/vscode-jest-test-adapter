@@ -36,30 +36,13 @@ export default class JestTestAdapter implements TestAdapter {
   private readonly retireEmitter = new vscode.EventEmitter<RetireEvent>();
   private readonly jestManager: JestManager;
   private testLoader: TestLoader | null = null;
-  private settingsPromise: Promise<void>;
 
   constructor(
     public readonly workspace: vscode.WorkspaceFolder,
     private readonly log: Log,
     private readonly options: IJestTestAdapterOptions,
   ) {
-    this.log.info("Initializing Jest adapter");
-
     this.jestManager = new JestManager(workspace, options);
-
-    const projectWorkspace = initProjectWorkspace(this.options, this.workspace);
-
-    this.log.info(`Loading Jest settings from ${projectWorkspace.pathToConfig}...`);
-    this.settingsPromise = getSettings(projectWorkspace)
-      .then(settings => {
-        this.testLoader = new TestLoader(settings, this.log, projectWorkspace);
-
-        this.disposables.push(this.testLoader.environmentChange(e => this.handleEnvironmentChange(e), this));
-        this.disposables.push(this.testLoader);
-
-        this.log.info(`Finished loading Jest settings.`);
-      })
-      .catch(error => this.log.error("Failed to load Jest settings.", error));
 
     this.disposables.push(this.testsEmitter);
     this.disposables.push(this.testStatesEmitter);
@@ -86,11 +69,20 @@ export default class JestTestAdapter implements TestAdapter {
 
     // check if the test loader has been initialized and if not, then do so.
     if (!this.testLoader) {
-      if (this.settingsPromise) {
-        await this.settingsPromise;
-      }
+      try {
+        const projectWorkspace = initProjectWorkspace(this.options, this.workspace);
 
-      if (!this.testLoader) {
+        this.log.info(`Loading Jest settings from ${projectWorkspace.pathToConfig}...`);
+
+        const settings = await getSettings(projectWorkspace);
+
+        this.testLoader = new TestLoader(settings, this.log, projectWorkspace);
+
+        this.disposables.push(this.testLoader.environmentChange(e => this.handleEnvironmentChange(e), this));
+        this.disposables.push(this.testLoader);
+
+        this.log.info(`Finished loading Jest settings.`);
+      } catch (error) {
         this.log.error("Attempted to load tests when Test Loader has not been initialized.");
         return;
       }
