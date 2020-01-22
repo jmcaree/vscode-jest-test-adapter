@@ -7,7 +7,9 @@ import { DescribeNode, FileNode, FolderNode, Node, RootNode, TestNode } from "./
 
 export function mapJestTestResultsToTestEvents(jestResponse: IJestResponse, tree: RootNode): TestEvent[] {
   return _.flatMap(jestResponse.results.testResults, fileResult => {
-    if (fileResult.status === "passed") {
+    // TODO we cannot easily tell the difference between when we have failing tests and an error running a test file.
+    // Currently we just check if there are any assertionResults.  Ideally it would be better if the status was 'errored'
+    if (fileResult.status === "passed" || fileResult.assertionResults.length > 0) {
       return fileResult.assertionResults.map(
         assertionResult =>
           ({

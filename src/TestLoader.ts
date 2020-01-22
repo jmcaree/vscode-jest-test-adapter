@@ -1,125 +1,191 @@
-import * as fs from "fs";
-import {
-  getSettings,
-  IParseResults,
-  JestSettings,
-  parse,
-  ProjectWorkspace,
-} from "jest-editor-support";
-import * as mm from "micromatch";
-import * as path from "path";
+import { JestSettings, ProjectWorkspace } from "jest-editor-support";
+import _ from "lodash";
+import * as vscode from "vscode";
 import { Log } from "vscode-test-adapter-util";
+import { createTree, mergeTree } from "./helpers/createTree";
+import deleteFileFromTree from "./helpers/deleteFileFromTree";
+import { createRootNode, RootNode } from "./helpers/tree";
+import TestParser, { createMatcher } from "./TestParser";
+import { EnvironmentChangedEvent, FileType, IDisposable, Matcher, TestsChangedEvent, TestState } from "./types";
 
-type Matcher = (value: string) => boolean;
-
-/**
- * Glob patterns to globally ignore when searching for tests.
- * Only universally recognized patterns should be used here, such as node_modules.
- */
-const IGNORE_GLOBS = [
-  "node_modules",
-];
-
-/**
- * Returns true if the specified path is a directory, false otherwise.
- * @param directory The full file system path to the check.
- */
-function checkIsDirectory(directory: string): Promise<boolean> {
-  return new Promise((resolve, reject) => {
-    fs.stat(directory, (err, stats) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(stats.isDirectory());
-      }
-    });
-  });
-}
-
-/**
- * Creates a matcher function that returns true if a file should be explored for tests, false otherwise.
- * @param settings The Jest settings.
- */
-function createMatcher(settings: JestSettings): Matcher {
-  // TODO what to do if there is more than one config?...
-
-  if (settings?.configs?.length > 0 && settings.configs[0].testRegex?.length > 0) {
-    const regex = new RegExp(settings.configs[0].testRegex[0]);
-    return (value) => regex.test(value);
+const getFileType = (filePath: string, matcher: Matcher): FileType => {
+  if (matcher(filePath)) {
+    return "Test";
+  } else if (isConfigFile(filePath)) {
+    return "Config";
+  } else if (isApplicationFile(filePath)) {
+    return "App";
   } else {
-    return (value) => mm.any(value, settings.configs[0].testMatch);
+    return "Other";
   }
-}
+};
 
-/**
- * Explores a directory recursively and returns the TestSuiteInfo representing the directory.
- * @param directory The full file system path to the directory.
- * @param matcher The matcher function to use to determine if a file includes tests.
- */
-async function exploreDirectory(directory: string, matcher: Matcher): Promise<IParseResults[]> {
-  const contents = await getDirectoryContents(directory);
-  const files = await Promise.all(contents.map((x) => evaluateFilePath(x, matcher)));
+const isApplicationFile = (filePath: string): boolean => {
+  // TODO consider whether mixed case extensions will operate correctly in case sensitive file systems like linux...
+  return /.*\.(?:js|ts)x?$/.test(filePath.toLowerCase());
+};
 
-  // some alternatives methods are not accepted by TS
-  return Array.prototype.concat(...files);
-}
+const isConfigFile = (filePath: string): boolean => {
+  // TODO consider whether mixed case extensions will operate correctly in case sensitive file systems like linux...
+  return /.*\.(?:spec|test)\.(?:js|ts)x?$/.test(filePath.toLowerCase());
+};
 
-/**
- * Evaluates a file path and returns the TestSuiteInfo representing it.
- * If the path is a directory, it will recursively explore it.
- * If the path is a file, it will parse the contents and search for test blocks.
- * If the directory or file did not include any tests, null will be returned.
- * @param filePath The file path to evaluate.
- * @param matcher The matcher function to use to determine if a file includes tests.
- */
-async function evaluateFilePath(filePath: string, matcher: Matcher): Promise<IParseResults[]> {
-  const isDirectory = await checkIsDirectory(filePath);
-  if (isDirectory) {
-    return await exploreDirectory(filePath, matcher);
-  } else if (matcher(filePath)) {
-    return [parse(filePath)];
-  } else {
-    return [];
-  }
-}
+class TestLoader {
+  private readonly disposables: IDisposable[] = [];
+  private readonly environmentChangedEmitter: vscode.EventEmitter<EnvironmentChangedEvent>;
+  private tree: RootNode = createRootNode("not initialized");
+  private testFiles: Set<string> = new Set<string>();
+  private promise: Promise<any> | null = null; // TODO maybe this should be a cancelable promise?
+  private testParser: TestParser;
 
-/**
- * Retrieves the contents of a directory and outputs their absolute paths.
- * Includes both files and directories.
- * Excludes glob patterns included in IGNORE_GLOBS.
- * @param directory Returns an array of absolute paths representing the items within the directory.
- */
-function getDirectoryContents(directory: string): Promise<string[]> {
-  return new Promise((resolve, reject) => {
-    fs.readdir(directory, (err, files) => {
-      if (err) {
-        reject(err);
-      } else {
-        const includedFiles = mm.not(files, IGNORE_GLOBS);
-        resolve(includedFiles.map((f) => path.join(directory, f)));
-      }
-    });
-  });
-}
-
-export default class TestLoader {
-  constructor(
+  public constructor(
+    private readonly settings: JestSettings,
     private readonly log: Log,
     private readonly projectWorkspace: ProjectWorkspace,
   ) {
+    this.environmentChangedEmitter = new vscode.EventEmitter<EnvironmentChangedEvent>();
+    this.testParser = new TestParser(this.projectWorkspace.rootPath, this.log, this.settings);
+    const fileWatcher = vscode.workspace.createFileSystemWatcher("**/*");
+
+    const matcher = createMatcher(this.settings);
+    this.disposables.push(fileWatcher.onDidCreate(uri => this.handleCreatedFile(uri, matcher), this));
+    this.disposables.push(fileWatcher.onDidDelete(uri => this.handleDeletedFile(uri, matcher), this));
+    this.disposables.push(fileWatcher.onDidChange(uri => this.handleChangedFile(uri, matcher), this));
+
+    this.disposables.push(fileWatcher, this.environmentChangedEmitter);
   }
 
-  public async loadTests() {
-    this.log.info(`Loading Jest settings from ${this.projectWorkspace.pathToConfig}`);
-    const settings = await getSettings(this.projectWorkspace);
-    
-    this.log.info("Jest settings loaded");
+  get environmentChange(): vscode.Event<EnvironmentChangedEvent> {
+    return this.environmentChangedEmitter.event;
+  }
 
-    this.log.info("Loading Jest tests");
-    const matcher = createMatcher(settings);
-    const parsedResults = await exploreDirectory(this.projectWorkspace.rootPath, matcher);
-    this.log.info("Test load complete");
+  public async getTestState(forceReload: boolean = false): Promise<TestState> {
+    if (forceReload) {
+      if (this.promise) {
+        // TODO handle if we are force reloading with an existing promise.  Need to cancel.
+      }
 
-    return parsedResults;
+      this.log.info(`Force loading all tests...`);
+      const self = this;
+
+      // Parse all files again.
+      this.promise = this.testParser
+        .parseAll()
+        .then(parsedResults => {
+          parsedResults.map(r => r.file).forEach(f => this.testFiles.add(f));
+          this.tree = createTree(parsedResults, this.projectWorkspace.rootPath);
+        })
+        .then(() => this.log.info(`Force loading process completed.`))
+        .catch(error => this.log.error("Error while reloading all tests.", error))
+        .finally(() => (self.promise = null));
+
+      await this.promise;
+    } else if (this.promise) {
+      this.log.info(`Awaiting existing loading process...`);
+      await this.promise;
+      this.log.info(`Existing loading process completed.`);
+    }
+
+    return { suite: this.tree, testFiles: [...this.testFiles.values()] };
+  }
+
+  public dispose(): void {
+    this.log.info(`TestLoader disposing of ${this.disposables.length} objects...`);
+
+    for (const disposable of this.disposables) {
+      disposable.dispose();
+    }
+    this.disposables.length = 0;
+
+    this.log.info("TestLoader disposed");
+  }
+
+  private async handleCreatedFile(uri: vscode.Uri, matcher: Matcher) {
+    const filePath = uri.fsPath;
+    const fileType = getFileType(filePath, matcher);
+    switch (fileType) {
+      case "App":
+        // if we have created a new application file, we'll assume for now that no tests are affected.
+        break;
+
+      case "Test":
+        this.testFiles.add(filePath);
+        const parseResults = this.testParser.parseFiles([filePath]);
+        this.tree = mergeTree(this.tree, parseResults, this.projectWorkspace.rootPath);
+        this.environmentChangedEmitter.fire({
+          ...getDefaultTestEnvironmentChangedEvent(this.testFiles, this.tree),
+          addedTestFiles: [filePath],
+          invalidatedTestIds: [filePath],
+        });
+        break;
+    }
+  }
+
+  private async handleDeletedFile(uri: vscode.Uri, matcher: Matcher) {
+    const filePath = uri.fsPath;
+    const fileType = getFileType(filePath, matcher);
+    switch (fileType) {
+      case "App":
+        // we'll invalidate all files now when an application file is removed, since we don't know which tests might be
+        // affected.
+        this.environmentChangedEmitter.fire({
+          invalidatedTestIds: ["root"],
+          type: fileType,
+        });
+        break;
+
+      case "Test":
+        this.testFiles.delete(filePath);
+        this.tree = deleteFileFromTree(this.tree, filePath);
+        this.environmentChangedEmitter.fire({
+          ...getDefaultTestEnvironmentChangedEvent(this.testFiles, this.tree),
+          invalidatedTestIds: [filePath],
+          removedTestFiles: [filePath],
+        });
+        break;
+    }
+  }
+
+  private async handleChangedFile(uri: vscode.Uri, matcher: Matcher) {
+    const filePath = uri.fsPath;
+    const fileType = getFileType(filePath, matcher);
+    switch (fileType) {
+      case "App":
+        // we'll invalidate all files now when an application file is changed, since we don't know which tests might be
+        // affected.
+        this.environmentChangedEmitter.fire({
+          invalidatedTestIds: ["root"],
+          type: fileType,
+        });
+        break;
+
+      case "Test":
+        this.testFiles.add(filePath);
+        const parseResults = this.testParser.parseFiles([filePath]);
+        // Removing the file from the tree and then merge it back in should correctly update the tree.
+        this.tree = mergeTree(deleteFileFromTree(this.tree, filePath), parseResults, this.projectWorkspace.rootPath);
+        this.environmentChangedEmitter.fire({
+          ...getDefaultTestEnvironmentChangedEvent(this.testFiles, this.tree),
+          invalidatedTestIds: [filePath],
+          modifiedTestFiles: [filePath],
+        });
+        break;
+    }
   }
 }
+
+const getDefaultTestEnvironmentChangedEvent = (testFiles: Set<string>, testSuite: RootNode): TestsChangedEvent => {
+  const testFilesArray = [...testFiles];
+
+  return {
+    addedTestFiles: [],
+    invalidatedTestIds: [],
+    modifiedTestFiles: [],
+    removedTestFiles: [],
+    testFiles: testFilesArray,
+    type: "Test",
+    updatedSuite: testSuite,
+  };
+};
+
+export default TestLoader;
