@@ -1,4 +1,4 @@
-import { JestAssertionResults, TestReconciler } from "jest-editor-support";
+import { JestAssertionResults, TestAssertionStatus, TestReconciler } from "jest-editor-support";
 import { TestDecoration } from "vscode-test-adapter-api";
 
 export function mapJestAssertionToTestDecorations(
@@ -14,15 +14,37 @@ export function mapJestAssertionToTestDecorations(
   const assertions = reconciler.assertionsForTestFile(fileName);
   if (assertions) {
     const matchingAssertion = assertions.find(x => x.title === assertionResult.title);
-    
+
     if (matchingAssertion && matchingAssertion.line) {
       decorations.push({
         // TODO we could have a extension config item that controls which message type to show on hover.
-        hover: matchingAssertion.shortMessage,
+        hover: getShortMessage(matchingAssertion),
         line: matchingAssertion.line - 1,
-        message: matchingAssertion.terseMessage || "TERSE MESSAGE MISSING",
+        message: getMessage(matchingAssertion),
       });
     }
   }
   return decorations;
 }
+
+// Prefer short message, terse message and finally message
+const getShortMessage = (assertion: TestAssertionStatus) =>
+  assertion.shortMessage
+    ? assertion.shortMessage
+    : assertion.terseMessage
+    ? assertion.terseMessage
+    : assertion.message
+    ? assertion.message
+    : "UNKNOWN";
+
+// Prefer terse message, short message and finally message.
+const getMessage = (assertion: TestAssertionStatus) =>
+  assertion.terseMessage
+    ? assertion.terseMessage
+    : assertion.shortMessage
+    ? getFirstLine(assertion.shortMessage)
+    : assertion.message
+    ? getFirstLine(assertion.message)
+    : "UNKNOWN";
+
+const getFirstLine = (text: string) => text.split("\n")[0];
