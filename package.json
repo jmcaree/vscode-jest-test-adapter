@@ -39,6 +39,7 @@
     "test": "jest",
     "test-ci": "jest --ci --reporters=jest-junit --reporters=default --coverage --coverageReporters=cobertura --coverageReporters=html",
     "test-watch": "jest --watch",
+    "type-check": "tsc --noEmit",
     "vscode:prepublish": "npm run webpack-prod",
     "webpack-prod": "webpack --mode production",
     "webpack-dev": "webpack --mode development",

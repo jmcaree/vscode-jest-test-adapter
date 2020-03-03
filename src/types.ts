@@ -1,6 +1,6 @@
 import { JestTotalResults, TestReconciler } from "jest-editor-support";
-import * as vscode from 'vscode';
-import { RootNode } from './helpers/tree';
+import * as vscode from "vscode";
+import { WorkspaceRootNode, ProjectRootNode } from "./helpers/tree";
 
 export interface IJestResponse {
   results: JestTotalResults;
@@ -14,30 +14,55 @@ export interface ITestFilter {
 
 export type Matcher = (value: string) => boolean;
 export type FileType = "App" | "Test" | "Config" | "Other";
-export type EnvironmentChangedEvent = TestsChangedEvent | ApplicationChangedEvent;
+export type EnvironmentChangedEvent = ProjectTestsChangedEvent | ApplicationChangedEvent;
 
-export interface TestState {
-  testFiles: string[];
-  suite: RootNode;
+export interface WorkspaceTestState {
+  suite: WorkspaceRootNode;
 }
 
-export interface TestsChangedEvent {
-  type: "Test"
+export interface ProjectTestState {
+  testFiles: string[];
+  suite: ProjectRootNode;
+}
+
+export interface ProjectTestsChangedEvent {
+  type: "Test";
   testFiles: string[];
   addedTestFiles: string[];
   modifiedTestFiles: string[];
   removedTestFiles: string[];
-  updatedSuite: RootNode;
-  invalidatedTestIds: string[]
+  updatedSuite: ProjectRootNode;
+  invalidatedTestIds: string[];
 }
 
 export interface ApplicationChangedEvent {
   type: "App";
-  invalidatedTestIds: ["root"]
+  invalidatedTestIds: ["root"];
 }
+
+export type ProjectsChangedEvent =
+  | {
+      type: "projectAdded";
+      suite: WorkspaceRootNode;
+      addedProject: ProjectRootNode;
+    }
+  | {
+      type: "projectRemoved";
+      suite: WorkspaceRootNode;
+    }
+  | {
+      type: "projectAppUpdated";
+      suite: WorkspaceRootNode;
+      invalidatedTestIds: string[];
+    }
+  | {
+      type: "projectTestsUpdated";
+      suite: WorkspaceRootNode;
+      testEvent: ProjectTestsChangedEvent
+    };
 
 export interface IDisposable {
   dispose(): void;
 }
 
-export const cancellationTokenNone: vscode.CancellationToken = new vscode.CancellationTokenSource().token
+export const cancellationTokenNone: vscode.CancellationToken = new vscode.CancellationTokenSource().token;

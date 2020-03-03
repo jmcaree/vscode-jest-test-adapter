@@ -3,12 +3,18 @@ interface NodeBase {
   label: string;
 }
 
-export type Node = RootNode | FolderNode | FileNode | DescribeNode | TestNode;
+export type Node = WorkspaceRootNode | ProjectRootNode | FolderNode | FileNode | DescribeNode | TestNode;
 
-export interface RootNode extends NodeBase {
-  type: "root";
+export interface WorkspaceRootNode extends NodeBase {
+  type: "workspaceRootNode";
+  projects: ProjectRootNode[];
+}
+
+export interface ProjectRootNode extends NodeBase {
+  type: "projectRootNode";
   folders: FolderNode[];
   files: FileNode[];
+  rootPath: string;
 }
 
 export interface FolderNode extends NodeBase {
@@ -40,7 +46,9 @@ export interface TestNode extends NodeBase {
 }
 
 export interface NodeVisitor {
-  visitRootNode: (root: RootNode) => void;
+  visitWorkspaceRootNode: (workspaceRoot: WorkspaceRootNode) => void;
+
+  visitProjectRootNode: (projectRoot: ProjectRootNode) => void;
 
   visitFolderNode: (folder: FolderNode) => void;
 
@@ -51,15 +59,25 @@ export interface NodeVisitor {
   visitTestNode: (test: TestNode) => void;
 }
 
-export const createRootNode = (id: string): RootNode => {
+export const createWorkspaceRootNode = (id: string): WorkspaceRootNode => {
+  return {
+    id,
+    label: "workspaceRootNode",
+    projects: [],
+    type: "workspaceRootNode"
+  }
+}
+
+export const createProjectNode = (id: string, label: string, rootPath: string): ProjectRootNode => {
   return {
     files: [],
     folders: [],
     id,
-    label: "root",
-    type: "root",
-  };
-};
+    label,
+    rootPath,
+    type: "projectRootNode",
+  }
+}
 
 export const createFolderNode = (id: string, label: string): FolderNode => ({
   files: [],
@@ -72,7 +90,7 @@ export const createFolderNode = (id: string, label: string): FolderNode => ({
 export const createFileNode = (id: string, label: string, file: string): FileNode => ({
   describeBlocks: [],
   file,
-  line: 1,  // TODO confirm that we are one indexed.
+  line: 1, // TODO confirm that we are one indexed.
   id,
   label,
   tests: [],

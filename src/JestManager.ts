@@ -9,7 +9,7 @@ export enum DebugOutput {
   internalConsole = "internalConsole",
 }
 
-export interface IJestManagerOptions {
+export interface JestTestAdapterOptions {
   debugOutput: DebugOutput;
   pathToConfig: (workspaceFolder: WorkspaceFolder) => string;
   pathToJest: (workspaceFolder: WorkspaceFolder) => string;
@@ -18,7 +18,7 @@ export interface IJestManagerOptions {
 export default class JestManager {
   private readonly activeRunners: Set<Runner> = new Set<Runner>();
 
-  constructor(public readonly workspace: WorkspaceFolder, private readonly options: IJestManagerOptions) {}
+  constructor(public readonly workspace: WorkspaceFolder, private readonly options: JestTestAdapterOptions) {}
 
   public closeAllActiveProcesses(): void {
     [...this.activeRunners].forEach(r => {

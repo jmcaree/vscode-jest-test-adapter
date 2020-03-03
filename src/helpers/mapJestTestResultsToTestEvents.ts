@@ -3,9 +3,9 @@ import { TestEvent } from "vscode-test-adapter-api";
 import { IJestResponse } from "../types";
 import { lowerCaseDriveLetter, mapAssertionResultToTestId } from "./mapAssertionResultToTestId";
 import { mapJestAssertionToTestDecorations } from "./mapJestAssertionToTestDecorations";
-import { DescribeNode, FileNode, FolderNode, Node, RootNode, TestNode } from "./tree";
+import { DescribeNode, FileNode, FolderNode, Node, ProjectRootNode, TestNode, WorkspaceRootNode } from "./tree";
 
-export function mapJestTestResultsToTestEvents(jestResponse: IJestResponse, tree: RootNode): TestEvent[] {
+export function mapJestTestResultsToTestEvents(jestResponse: IJestResponse, tree: WorkspaceRootNode): TestEvent[] {
   return _.flatMap(jestResponse.results.testResults, fileResult => {
     // TODO we cannot easily tell the difference between when we have failing tests and an error running a test file.
     // Currently we just check if there are any assertionResults.  Ideally it would be better if the status was 'errored'
@@ -23,8 +23,8 @@ export function mapJestTestResultsToTestEvents(jestResponse: IJestResponse, tree
       );
     }
 
-    const lowerCaseFileName = lowerCaseDriveLetter(fileResult.name)
-    const matchingFileNode = searchRootOrFolder(tree, n => (n.type === "file" && n.id === lowerCaseFileName));
+    const lowerCaseFileName = lowerCaseDriveLetter(fileResult.name);
+    const matchingFileNode = searchWorkspaceRoot(tree, n => n.type === "file" && n.id === lowerCaseFileName);
     if (!matchingFileNode || matchingFileNode.type !== "file") {
       return [];
     }
@@ -36,7 +36,7 @@ export function mapJestTestResultsToTestEvents(jestResponse: IJestResponse, tree
             {
               hover: fileResult.message,
               line: t.line,
-              message: fileResult.message,// TODO convert to single line of text
+              message: fileResult.message, // TODO convert to single line of text
             },
           ],
           message: fileResult.message,
@@ -48,14 +48,27 @@ export function mapJestTestResultsToTestEvents(jestResponse: IJestResponse, tree
   });
 }
 
-const searchRootOrFolder = (root: RootNode | FolderNode, matchFunction: (node: Node) => boolean): Node | null => {
+const searchWorkspaceRoot = (workspaceRoot: WorkspaceRootNode, matchFunction: (node: Node) => boolean): Node | null => {
+  if (matchFunction(workspaceRoot)) {
+    return workspaceRoot;
+  }
+  return (
+    _.chain(workspaceRoot.projects)
+      .map(p => searchProjectRootOrFolder(p, matchFunction))
+      .filter(n => n !== null)
+      .first()
+      .value() ?? null
+  );
+};
+
+const searchProjectRootOrFolder = (root: FolderNode | ProjectRootNode, matchFunction: (node: Node) => boolean): Node | null => {
   if (matchFunction(root)) {
     return root;
   }
 
   return (
     _.chain(root.folders)
-      .map(f => searchRootOrFolder(f, matchFunction))
+      .map(f => searchProjectRootOrFolder(f, matchFunction))
       .concat(root.files.map(f => searchFileOrDescribeNode(f, matchFunction)))
       .filter(f => f !== null)
       .first()
@@ -63,7 +76,10 @@ const searchRootOrFolder = (root: RootNode | FolderNode, matchFunction: (node: N
   );
 };
 
-const searchFileOrDescribeNode = (file: FileNode | DescribeNode, matchFunction: (node: Node) => boolean): Node | null => {
+const searchFileOrDescribeNode = (
+  file: FileNode | DescribeNode,
+  matchFunction: (node: Node) => boolean,
+): Node | null => {
   if (matchFunction(file)) {
     return file;
   }
@@ -79,9 +95,9 @@ const searchFileOrDescribeNode = (file: FileNode | DescribeNode, matchFunction: 
 };
 
 const searchTest = (test: TestNode, matchFunction: (node: Node) => boolean): Node | null => {
-  return matchFunction(test) ? test: null;
+  return matchFunction(test) ? test : null;
 };
 
 const getTests = (file: FileNode | DescribeNode): TestNode[] => {
-  return _.flatMap(file.describeBlocks.map(d => getTests(d))).concat(file.tests)
-}
+  return _.flatMap(file.describeBlocks.map(d => getTests(d))).concat(file.tests);
+};

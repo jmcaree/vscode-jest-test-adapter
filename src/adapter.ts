@@ -1,4 +1,3 @@
-import { getSettings } from "jest-editor-support";
 import * as vscode from "vscode";
 import {
   RetireEvent,
@@ -11,18 +10,15 @@ import {
   TestSuiteEvent,
 } from "vscode-test-adapter-api";
 import { Log } from "vscode-test-adapter-util";
-import { emitTestCompleteRootNode, emitTestRunningRootNode } from "./helpers/emitTestCompleteRootNode";
+import { emitTestCompleteWorkspaceRootNode, emitTestRunningRootNode } from "./helpers/emitTestCompleteRootNode";
 import { filterTree } from "./helpers/filterTree";
-import { initProjectWorkspace } from "./helpers/initProjectWorkspace";
 import { mapJestTestResultsToTestEvents } from "./helpers/mapJestTestResultsToTestEvents";
 import { mapTestIdsToTestFilter } from "./helpers/mapTestIdsToTestFilter";
-import { mapTreeToSuite } from "./helpers/mapTreeToSuite";
-import { createRootNode, RootNode } from "./helpers/tree";
-import JestManager, { IJestManagerOptions } from "./JestManager";
-import TestLoader from "./TestLoader";
-import { EnvironmentChangedEvent, IDisposable } from "./types";
-
-export type IJestTestAdapterOptions = IJestManagerOptions;
+import { mapWorkspaceRootToSuite } from "./helpers/mapTreeToSuite";
+import { createWorkspaceRootNode, WorkspaceRootNode } from "./helpers/tree";
+import JestManager, { JestTestAdapterOptions } from "./JestManager";
+import ProjectManager from "./ProjectManager";
+import { IDisposable, ProjectsChangedEvent } from "./types";
 
 type TestStateCompatibleEvent = TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent;
 
@@ -30,17 +26,17 @@ export default class JestTestAdapter implements TestAdapter {
   private isLoadingTests: boolean = false;
   private isRunningTests: boolean = false;
   private disposables: IDisposable[] = [];
-  private tree: RootNode = createRootNode("root");
+  private tree: WorkspaceRootNode = createWorkspaceRootNode("root");
   private readonly testsEmitter = new vscode.EventEmitter<TestLoadStartedEvent | TestLoadFinishedEvent>();
   private readonly testStatesEmitter = new vscode.EventEmitter<TestStateCompatibleEvent>();
   private readonly retireEmitter = new vscode.EventEmitter<RetireEvent>();
   private readonly jestManager: JestManager;
-  private testLoader: TestLoader | null = null;
+  private projectManager: ProjectManager | null = null;
 
   constructor(
     public readonly workspace: vscode.WorkspaceFolder,
     private readonly log: Log,
-    private readonly options: IJestTestAdapterOptions,
+    private readonly options: JestTestAdapterOptions,
   ) {
     this.jestManager = new JestManager(workspace, options);
 
@@ -67,23 +63,13 @@ export default class JestTestAdapter implements TestAdapter {
       return;
     }
 
-    // check if the test loader has been initialized and if not, then do so.
-    if (!this.testLoader) {
+    if (!this.projectManager) {
       try {
-        const projectWorkspace = initProjectWorkspace(this.options, this.workspace);
-
-        this.log.info(`Loading Jest settings from ${projectWorkspace.pathToConfig}...`);
-
-        const settings = await getSettings(projectWorkspace);
-
-        this.testLoader = new TestLoader(settings, this.log, projectWorkspace);
-
-        this.disposables.push(this.testLoader.environmentChange(e => this.handleEnvironmentChange(e), this));
-        this.disposables.push(this.testLoader);
-
-        this.log.info(`Finished loading Jest settings.`);
+        this.projectManager = new ProjectManager(this.workspace, this.log, this.options);
+        this.projectManager.projectsChanged(e => this.handleProjectsChanged(e), this);
+        this.disposables.push(this.projectManager);
       } catch (error) {
-        this.log.error("Attempted to load tests when Test Loader has not been initialized.");
+        this.log.error("Attempted to load tests when Project Manager has not been initialized.");
         return;
       }
     }
@@ -94,9 +80,9 @@ export default class JestTestAdapter implements TestAdapter {
     try {
       this.testsEmitter.fire({ type: "started" });
 
-      const state = await this.testLoader.getTestState(true);
+      const state = await this.projectManager.getTestState();
       this.tree = state.suite;
-      const suite = mapTreeToSuite(this.tree);
+      const suite = mapWorkspaceRootToSuite(this.tree);
 
       this.testsEmitter.fire({ suite, type: "finished" });
     } catch (error) {
@@ -130,6 +116,8 @@ export default class JestTestAdapter implements TestAdapter {
       const filteredTree = filterTree(this.tree, tests);
       emitTestRunningRootNode(filteredTree, eventEmitter);
 
+      // TODO we need to test ALL projects here.
+
       // begin running the tests in Jest.
       const jestResponse = await this.jestManager.runTests(testFilter);
 
@@ -138,7 +126,7 @@ export default class JestTestAdapter implements TestAdapter {
         const testEvents = mapJestTestResultsToTestEvents(jestResponse, filteredTree);
 
         // emit the completion events.
-        emitTestCompleteRootNode(filteredTree, testEvents, eventEmitter);
+        emitTestCompleteWorkspaceRootNode(filteredTree, testEvents, eventEmitter);
       }
     } catch (error) {
       this.log.error("Error running tests", JSON.stringify(error));
@@ -181,8 +169,6 @@ export default class JestTestAdapter implements TestAdapter {
   public cancel(): void {
     this.log.info("Closing all active Jest processes");
     this.jestManager.closeAllActiveProcesses();
-
-    // TODO cancel other processes.
   }
 
   public dispose(): void {
@@ -193,31 +179,29 @@ export default class JestTestAdapter implements TestAdapter {
     this.disposables = [];
   }
 
-  private handleEnvironmentChange(e: EnvironmentChangedEvent) {
-    switch (e.type) {
-      case "App":
-        this.retireTestFiles(e.invalidatedTestIds);
-        break;
+  private handleProjectsChanged(event: ProjectsChangedEvent) {
+    try {
+      this.log.info("Loading Jest tests...");
 
-      case "Test":
-        try {
-          this.log.info("Loading Jest tests...");
+      this.testsEmitter.fire({ type: "started" });
 
-          this.testsEmitter.fire({ type: "started" });
+      this.tree = event.suite;
+      const suite = mapWorkspaceRootToSuite(this.tree);
 
-          this.tree = e.updatedSuite;
-          const suite = mapTreeToSuite(this.tree);
-          this.retireTestFiles(e.invalidatedTestIds);
+      switch (event.type) {
+        case "projectAdded":
+          this.retireTestFiles(event.addedProject.files.map(f => f.file));
+          break;
 
-          this.testsEmitter.fire({ suite, type: "finished" });
-        } catch (error) {
-          this.log.error("Error loading tests", JSON.stringify(error));
-          this.testsEmitter.fire({ type: "finished", errorMessage: JSON.stringify(error) });
-        }
-        break;
+        case "projectRemoved":
+          // Assume that if we are removing a project, then we don't need to invalidate anything.
+          break;
+      }
 
-      default:
-        break;
+      this.testsEmitter.fire({ suite, type: "finished" });
+    } catch (error) {
+      this.log.error("Error loading tests", JSON.stringify(error));
+      this.testsEmitter.fire({ type: "finished", errorMessage: JSON.stringify(error) });
     }
   }
 

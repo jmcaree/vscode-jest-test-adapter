@@ -2,7 +2,7 @@ import { DescribeBlock, IParseResults, ItBlock, Location, ParsedNodeTypes } from
 import _ from "lodash";
 import { parse, sep as pathSeparator } from "path";
 import { DESCRIBE_ID_SEPARATOR, TEST_ID_SEPARATOR } from "../constants";
-import { createFileNode, createFolderNode, createRootNode, DescribeNode, FolderNode, RootNode, TestNode } from "./tree";
+import { createFileNode, createFolderNode, DescribeNode, FolderNode, ProjectRootNode, TestNode } from "./tree";
 
 interface ParseInfo {
   /**
@@ -35,18 +35,14 @@ interface ParseInfo {
 type Describe = Omit<DescribeBlock, "filter" | "addChild"> & { describeBlocks: Describe[]; tests: ItBlock[] };
 
 /**
- * Creates a tree from the Jest Test Adapter parse results suitable
+ * Merges a tree with updated Jest Test Adapter parse results.
+ * @param tree The existing project parse tree to merge the new results with.
  * @param parseResults The parse results from the Jest Test Adapter.
- * @param workspaceRoot The root path of the current workspace.
+ * @param projectRoot The root path of the current project.
  */
-const createTree = (parseResults: IParseResults[], workspaceRoot: string): RootNode => {
-  const root: RootNode = createRootNode(workspaceRoot);
-  return mergeTree(root, parseResults, workspaceRoot);
-}
-
-const mergeTree = (tree: RootNode, parseResults: IParseResults[], workspaceRoot: string): RootNode => {
+const mergeTree = (tree: ProjectRootNode, parseResults: IParseResults[], projectRoot: string): ProjectRootNode => {
   const infos = _.chain(parseResults)
-    .map(x => toParseInfo(x, workspaceRoot))
+    .map(x => toParseInfo(x, projectRoot))
     .sortBy(x => x.folders.length > 0)
     .value();
 
@@ -54,7 +50,7 @@ const mergeTree = (tree: RootNode, parseResults: IParseResults[], workspaceRoot:
     const { file, describeBlocks, itBlocks } = info.parseResult;
 
     // process all the folder nodes...
-    let currentFolderNode: RootNode | FolderNode = tree;
+    let currentFolderNode: ProjectRootNode | FolderNode = tree;
     info.folders.forEach(f => {
       const existingFolderNode = currentFolderNode.folders.find(n => n.id === f.id);
       // create folder node and set current node to new node.
@@ -235,4 +231,4 @@ const isNested = (potentialChild: Describe | ItBlock, containingDescribe: Descri
   return startIsBefore && endIsAfter;
 };
 
-export { createTree, mergeTree };
+export { mergeTree };

@@ -1,14 +1,19 @@
-import { DescribeNode, FileNode, FolderNode, RootNode, TestNode } from "./tree";
+import { DescribeNode, FileNode, FolderNode, ProjectRootNode, TestNode, WorkspaceRootNode } from "./tree";
 
-const filterTree = (tree: RootNode, testNames: string[]): RootNode => {
+const filterTree = (tree: WorkspaceRootNode, testNames: string[]): WorkspaceRootNode => {
   if (testNames.length === 1 && testNames[0] === "root") {
     return tree;
   }
   return {
     ...tree,
-    files: filterFiles(tree.files, testNames),
-    folders: filterFolders(tree.folders, testNames),
+    projects: filterProjects(tree.projects, testNames),
   };
+};
+
+const filterProjects = (projects: ProjectRootNode[], testNames: string[]): ProjectRootNode[] => {
+  return projects
+    .filter(p => true)  // TODO this filter needs to be implemented correctly.
+    .map(p => ({ ...p, files: filterFiles(p.files, testNames), folders: filterFolders(p.folders, testNames) }));
 };
 
 const filterFolders = (folders: FolderNode[], testNames: string[]): FolderNode[] => {

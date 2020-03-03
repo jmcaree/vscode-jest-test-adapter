@@ -1,12 +1,12 @@
 import * as vscode from "vscode";
 import { testExplorerExtensionId, TestHub } from "vscode-test-adapter-api";
 import { Log, TestAdapterRegistrar } from "vscode-test-adapter-util";
-import JestTestAdapter, { IJestTestAdapterOptions } from "./adapter";
+import JestTestAdapter from "./adapter";
 import pathToConfigHelper from "./helpers/pathToConfig";
 import pathToJestHelper from "./helpers/pathToJest";
-import { DebugOutput } from "./JestManager";
+import { DebugOutput, JestTestAdapterOptions } from "./JestManager";
 
-function getJestAdapterOptions(): IJestTestAdapterOptions {
+function getJestAdapterOptions(): JestTestAdapterOptions {
   const pathToJest = (w: vscode.WorkspaceFolder) => {
     return (
       vscode.workspace
