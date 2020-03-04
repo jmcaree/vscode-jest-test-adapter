@@ -37,7 +37,7 @@ class ProjectManager {
 
   public async getTestState(): Promise<WorkspaceTestState> {
     if (!this.repoParser) {
-      this.repoParser = getRepoParser(this.workspace.uri.fsPath);
+      this.repoParser = await getRepoParser(this.workspace.uri.fsPath);
       this.disposables.push(this.repoParser.projectChange(this.handleProjectChange));
     }
     if (!this.repoParser) {
