@@ -19,7 +19,7 @@ import {
 class ProjectManager {
   private repoParser: RepoParser | null = null;
   private testLoaders: TestLoader[] = [];
-  private testLoaderDisposables: IDisposable[] = [];
+  private disposables: IDisposable[] = [];
   private projectsChangedEmitter: vscode.EventEmitter<ProjectsChangedEvent>;
   private workspaceTestState: WorkspaceRootNode = createWorkspaceRootNode("not initialized");
 
@@ -37,14 +37,13 @@ class ProjectManager {
 
   public async getTestState(): Promise<WorkspaceTestState> {
     if (!this.repoParser) {
-      this.repoParser = getRepoParser();
+      this.repoParser = getRepoParser(this.workspace.uri.fsPath);
+      this.disposables.push(this.repoParser.projectChange(this.handleProjectChange));
     }
     if (!this.repoParser) {
       this.log.error("No RepoParser available.");
       return { suite: this.workspaceTestState };
     }
-
-    this.repoParser.projectChange(this.handleProjectChange);
 
     const jestPath = this.options.pathToJest(this.workspace);
 
@@ -58,9 +57,9 @@ class ProjectManager {
 
       const testLoader = new TestLoader(settings, this.log, p);
       this.testLoaders.push(testLoader);
-      this.testLoaderDisposables.push(testLoader.environmentChange(e => this.handleTestChange(e), this));
+      this.disposables.push(testLoader.environmentChange(e => this.handleTestChange(e), this));
 
-      return testLoader.getTestState();
+      return testLoader.getTestState(true);
     });
 
     const testStates = await Promise.all(promises);
@@ -81,10 +80,10 @@ class ProjectManager {
     }
     this.testLoaders = [];
 
-    for (const disposable of this.testLoaderDisposables) {
+    for (const disposable of this.disposables) {
       disposable.dispose();
     }
-    this.testLoaderDisposables = [];
+    this.disposables = [];
 
     if (this.projectsChangedEmitter) {
       this.projectsChangedEmitter.dispose();

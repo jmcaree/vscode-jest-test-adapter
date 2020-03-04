@@ -20,8 +20,12 @@ interface NxReact {
 export class NxdevReact extends RepoParserBase implements RepoParser {
   public type = "Nx.dev React";
 
+  constructor(private workspaceRoot: string) {
+    super();
+  }
+
   public async getProjects() {
-    const buffer = await readFile(".\\workspace.json");
+    const buffer = await readFile(path.resolve(this.workspaceRoot, "workspace.json"));
     const reactConfig = JSON.parse(buffer.toString());
 
     // TODO this is probably completely different.
@@ -33,17 +37,26 @@ export class NxdevReact extends RepoParserBase implements RepoParser {
           projectConfig.architect.test.builder &&
           projectConfig.architect.test.builder === "@nrwl/jest:jest",
       )
-      .map(([projectName, projectConfig]) => ({
-        projectName,
-        ...projectConfig.architect.test.options,
-        // TODO this is assuming that the project root is where the jest config is.
-        rootPath: path.dirname(projectConfig.architect.test.options.jestConfig),
-      }));
+      .map(([projectName, projectConfig]) => {
+        const options = projectConfig.architect.test.options;
+
+        return {
+          jestConfig: path.resolve(this.workspaceRoot, options.jestConfig),
+          projectName,
+          // TODO this is assuming that the project root is where the jest config is.
+          rootPath: path.resolve(this.workspaceRoot, path.dirname(options.jestConfig)),
+          setupFile: path.resolve(this.workspaceRoot, options.setupFile),
+          tsConfig: path.resolve(this.workspaceRoot, options.tsConfig),
+        };
+      });
 
     return reactProjects;
   }
 
   public async isMatch() {
-    return (await exists(".\\workspace.json")) && (await exists(".\\nx.json"));
+    return (
+      (await exists(path.resolve(this.workspaceRoot, "workspace.json"))) &&
+      (await exists(path.resolve(this.workspaceRoot, "nx.json")))
+    );
   }
 }

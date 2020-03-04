@@ -3,8 +3,9 @@ import { NxdevReact } from "./NxdevReact";
 import { StandardParser } from "./StandardParser";
 import { ProjectConfig, RepoParser } from "./types";
 
-const repoParsers: RepoParser[] = [new NxdevAngular(), new NxdevReact(), new StandardParser()];
-
-const getRepoParser = () => repoParsers.filter(async x => (await x.isMatch()) === true)[0];
+const getRepoParser = (workspaceRoot: string) => {
+  const repoParsers: RepoParser[] = [new NxdevAngular(workspaceRoot), new NxdevReact(workspaceRoot), new StandardParser(workspaceRoot)];
+  return repoParsers.filter(async (x) => (await x.isMatch()) === true)[0];
+};
 
 export { ProjectConfig, RepoParser, getRepoParser };

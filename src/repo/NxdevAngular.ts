@@ -24,10 +24,15 @@ interface NxAngular {
 class NxdevAngular extends RepoParserBase implements RepoParser {
   public type = "Nx.dev Angular";
 
+  constructor(private workspaceRoot: string) {
+    super();
+  }
+
   public async getProjects() {
     // if we parse the angular.json file we get all the config we need.
     // Note that we filter out projects that do not have a jest builder.
-    const buffer = await readFile(".\\angular.json");
+    const angularJsonPath = path.resolve(this.workspaceRoot, "angular.json");
+    const buffer = await readFile(angularJsonPath);
     const angularConfig = JSON.parse(buffer.toString());
     const angularProjects = Object.entries<NxAngular>(angularConfig.projects)
       .filter(
@@ -37,18 +42,27 @@ class NxdevAngular extends RepoParserBase implements RepoParser {
           projectConfig.architect.test.builder &&
           projectConfig.architect.test.builder === "@nrwl/jest:jest",
       )
-      .map(([projectName, projectConfig]) => ({
-        projectName,
-        ...projectConfig.architect.test.options,
-        // TODO this is assuming that the project root is where the jest config is.
-        rootPath: path.dirname(projectConfig.architect.test.options.jestConfig),
-      }));
+      .map(([projectName, projectConfig]) => {
+        const options = projectConfig.architect.test.options;
+
+        return {
+          jestConfig: path.resolve(this.workspaceRoot, options.jestConfig),
+          projectName,
+          // TODO this is assuming that the project root is where the jest config is.
+          rootPath: path.resolve(this.workspaceRoot, path.dirname(options.jestConfig)),
+          setupFile: path.resolve(this.workspaceRoot, options.setupFile),
+          tsConfig: path.resolve(this.workspaceRoot, options.tsConfig),
+        };
+      });
 
     return angularProjects;
   }
 
   public async isMatch() {
-    return (await exists(".\\angular.json")) && (await exists(".\\nx.json"));
+    return (
+      (await exists(path.resolve(this.workspaceRoot, "angular.json"))) &&
+      (await exists(path.resolve(this.workspaceRoot, "nx.json")))
+    );
   }
 }
 
