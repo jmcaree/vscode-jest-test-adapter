@@ -1,19 +1,37 @@
 import { DescribeNode, FileNode, FolderNode, ProjectRootNode, TestNode, WorkspaceRootNode } from "./tree";
 
-const filterTree = (tree: WorkspaceRootNode, testNames: string[]): WorkspaceRootNode => {
+function filterTree(tree: WorkspaceRootNode, testNames: string[]): WorkspaceRootNode;
+function filterTree(tree: ProjectRootNode, testNames: string[]): ProjectRootNode;
+function filterTree(
+  tree: WorkspaceRootNode | ProjectRootNode,
+  testNames: string[],
+): WorkspaceRootNode | ProjectRootNode {
   if (testNames.length === 1 && testNames[0] === "root") {
     return tree;
   }
+
+  switch (tree.type) {
+    case "workspaceRootNode":
+      return filterWorkspace(tree as WorkspaceRootNode, testNames);
+
+    case "projectRootNode":
+      return filterProject(tree as ProjectRootNode, testNames);
+  }
+}
+
+const filterWorkspace = (tree: WorkspaceRootNode, testNames: string[]): WorkspaceRootNode => {
   return {
     ...tree,
-    projects: filterProjects(tree.projects, testNames),
+    projects: tree.projects.map(p => filterProject(p, testNames)),
   };
 };
 
-const filterProjects = (projects: ProjectRootNode[], testNames: string[]): ProjectRootNode[] => {
-  return projects
-    .filter(p => true)  // TODO this filter needs to be implemented correctly.
-    .map(p => ({ ...p, files: filterFiles(p.files, testNames), folders: filterFolders(p.folders, testNames) }));
+const filterProject = (project: ProjectRootNode, testNames: string[]): ProjectRootNode => {
+  return {
+    ...project,
+    files: filterFiles(project.files, testNames),
+    folders: filterFolders(project.folders, testNames),
+  };
 };
 
 const filterFolders = (folders: FolderNode[], testNames: string[]): FolderNode[] => {

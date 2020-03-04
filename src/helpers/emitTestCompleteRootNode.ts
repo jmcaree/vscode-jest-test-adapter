@@ -1,6 +1,22 @@
 import { TestEvent, TestRunFinishedEvent, TestRunStartedEvent, TestSuiteEvent } from "vscode-test-adapter-api";
 import { DescribeNode, FileNode, FolderNode, ProjectRootNode, TestNode, WorkspaceRootNode } from "./tree";
 
+const emitTestCompleteRootNode = (
+  root: WorkspaceRootNode | ProjectRootNode,
+  testEvents: TestEvent[],
+  eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
+): void => {
+  switch (root.type) {
+    case "workspaceRootNode":
+      emitTestCompleteWorkspaceRootNode(root, testEvents, eventEmitter);
+      break;
+
+    case "projectRootNode":
+      emitTestCompleteProjectRootNode(root, testEvents, eventEmitter);
+      break;
+  }
+};
+
 const emitTestCompleteWorkspaceRootNode = (
   root: WorkspaceRootNode,
   testEvents: TestEvent[],
@@ -83,6 +99,21 @@ const emitTestCompleteTest = (
 };
 
 const emitTestRunningRootNode = (
+  root: WorkspaceRootNode | ProjectRootNode,
+  eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
+): void => {
+  switch (root.type) {
+    case "workspaceRootNode":
+      emitTestRunningWorkspaceRootNode(root, eventEmitter);
+      break;
+
+    case "projectRootNode":
+      emitTestRunningProjectRootNode(root, eventEmitter);
+      break;
+  }
+};
+
+const emitTestRunningWorkspaceRootNode = (
   root: WorkspaceRootNode,
   eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
 ) => {
@@ -159,4 +190,4 @@ const emitTestRunningTest = (
   });
 };
 
-export { emitTestCompleteWorkspaceRootNode, emitTestRunningRootNode };
+export { emitTestCompleteRootNode, emitTestRunningRootNode };

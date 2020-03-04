@@ -44,7 +44,7 @@ class TestLoader {
     private readonly log: Log,
     private readonly projectConfig: ProjectConfig,
   ) {
-    this.tree = createProjectNode(projectConfig.projectName, projectConfig.projectName, projectConfig.rootPath);
+    this.tree = createProjectNode(projectConfig.projectName, projectConfig.projectName, projectConfig.rootPath, projectConfig.jestConfig!);
 
     this.environmentChangedEmitter = new vscode.EventEmitter<EnvironmentChangedEvent>();
     this.testParser = new TestParser(projectConfig.rootPath, this.log, this.settings);

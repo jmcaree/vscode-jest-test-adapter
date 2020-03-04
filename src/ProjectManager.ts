@@ -21,7 +21,7 @@ class ProjectManager {
   private testLoaders: TestLoader[] = [];
   private disposables: IDisposable[] = [];
   private projectsChangedEmitter: vscode.EventEmitter<ProjectsChangedEvent>;
-  private workspaceTestState: WorkspaceRootNode = createWorkspaceRootNode("not initialized");
+  private workspaceTestState: WorkspaceRootNode = createWorkspaceRootNode();
 
   constructor(
     private readonly workspace: vscode.WorkspaceFolder,
@@ -65,7 +65,7 @@ class ProjectManager {
     const testStates = await Promise.all(promises);
 
     this.workspaceTestState = {
-      id: "workspaceRootNode",
+      id: "root",
       label: this.repoParser.type,
       projects: testStates.map(x => x.suite),
       type: "workspaceRootNode",

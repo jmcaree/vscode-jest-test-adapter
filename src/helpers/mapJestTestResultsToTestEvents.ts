@@ -5,7 +5,7 @@ import { lowerCaseDriveLetter, mapAssertionResultToTestId } from "./mapAssertion
 import { mapJestAssertionToTestDecorations } from "./mapJestAssertionToTestDecorations";
 import { DescribeNode, FileNode, FolderNode, Node, ProjectRootNode, TestNode, WorkspaceRootNode } from "./tree";
 
-export function mapJestTestResultsToTestEvents(jestResponse: IJestResponse, tree: WorkspaceRootNode): TestEvent[] {
+export function mapJestTestResultsToTestEvents(jestResponse: IJestResponse, tree: WorkspaceRootNode | ProjectRootNode): TestEvent[] {
   return _.flatMap(jestResponse.results.testResults, fileResult => {
     // TODO we cannot easily tell the difference between when we have failing tests and an error running a test file.
     // Currently we just check if there are any assertionResults.  Ideally it would be better if the status was 'errored'
@@ -48,20 +48,33 @@ export function mapJestTestResultsToTestEvents(jestResponse: IJestResponse, tree
   });
 }
 
-const searchWorkspaceRoot = (workspaceRoot: WorkspaceRootNode, matchFunction: (node: Node) => boolean): Node | null => {
+const searchWorkspaceRoot = (
+  workspaceRoot: WorkspaceRootNode | ProjectRootNode,
+  matchFunction: (node: Node) => boolean,
+): Node | null => {
   if (matchFunction(workspaceRoot)) {
     return workspaceRoot;
   }
-  return (
-    _.chain(workspaceRoot.projects)
-      .map(p => searchProjectRootOrFolder(p, matchFunction))
-      .filter(n => n !== null)
-      .first()
-      .value() ?? null
-  );
+
+  switch (workspaceRoot.type) {
+    case "workspaceRootNode":
+      return (
+        _.chain(workspaceRoot.projects)
+          .map(p => searchProjectRootOrFolder(p, matchFunction))
+          .filter(n => n !== null)
+          .first()
+          .value() ?? null
+      );
+
+    case "projectRootNode":
+      return searchProjectRootOrFolder(workspaceRoot, matchFunction);
+  }
 };
 
-const searchProjectRootOrFolder = (root: FolderNode | ProjectRootNode, matchFunction: (node: Node) => boolean): Node | null => {
+const searchProjectRootOrFolder = (
+  root: FolderNode | ProjectRootNode,
+  matchFunction: (node: Node) => boolean,
+): Node | null => {
   if (matchFunction(root)) {
     return root;
   }

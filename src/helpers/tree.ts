@@ -6,6 +6,7 @@ interface NodeBase {
 export type Node = WorkspaceRootNode | ProjectRootNode | FolderNode | FileNode | DescribeNode | TestNode;
 
 export interface WorkspaceRootNode extends NodeBase {
+  id: "root",
   type: "workspaceRootNode";
   projects: ProjectRootNode[];
 }
@@ -15,6 +16,7 @@ export interface ProjectRootNode extends NodeBase {
   folders: FolderNode[];
   files: FileNode[];
   rootPath: string;
+  configPath: string;
 }
 
 export interface FolderNode extends NodeBase {
@@ -59,17 +61,18 @@ export interface NodeVisitor {
   visitTestNode: (test: TestNode) => void;
 }
 
-export const createWorkspaceRootNode = (id: string): WorkspaceRootNode => {
+export const createWorkspaceRootNode = (): WorkspaceRootNode => {
   return {
-    id,
+    id: "root",
     label: "workspaceRootNode",
     projects: [],
     type: "workspaceRootNode"
   }
 }
 
-export const createProjectNode = (id: string, label: string, rootPath: string): ProjectRootNode => {
+export const createProjectNode = (id: string, label: string, rootPath: string, configPath: string): ProjectRootNode => {
   return {
+    configPath,
     files: [],
     folders: [],
     id,
