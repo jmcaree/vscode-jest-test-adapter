@@ -1,15 +1,17 @@
 import { JestAssertionResults } from "jest-editor-support";
-import { DESCRIBE_ID_SEPARATOR, TEST_ID_SEPARATOR } from "../constants";
+import { mapIdToString } from "./idMaps";
 
-export function mapAssertionResultToTestId(assertionResult: JestAssertionResults, fileName: string) {
-  fileName = lowerCaseDriveLetter(fileName)
-
-  // TODO we may be able to rationalise the code that generates ids here.
-  const describeBlocks = assertionResult.ancestorTitles && assertionResult.ancestorTitles.length > 0
-    ? DESCRIBE_ID_SEPARATOR + assertionResult.ancestorTitles.join(DESCRIBE_ID_SEPARATOR)
-    : "";
-  return `${fileName}${describeBlocks}${TEST_ID_SEPARATOR}${assertionResult.title}`;
-}
+export const mapAssertionResultToTestId = (
+  assertionResult: JestAssertionResults,
+  fileName: string,
+  projectId: string,
+) =>
+  mapIdToString({
+    describeIds: assertionResult.ancestorTitles || undefined,
+    fileName: lowerCaseDriveLetter(fileName),
+    projectId,
+    testId: assertionResult.title,
+  });
 
 /**
  * A function that lowercases the drive letter for the given path.  In Windows at least, we seem to get an issue with
@@ -22,4 +24,4 @@ export const lowerCaseDriveLetter = (path: string): string => {
     return path.replace(driveLetterRegex, x => x.toLowerCase());
   }
   return path;
-}
+};

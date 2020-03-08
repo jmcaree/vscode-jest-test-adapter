@@ -1,36 +1,28 @@
-import { DESCRIBE_ID_SEPARATOR, TEST_ID_SEPARATOR } from "../constants";
+import _ from 'lodash';
 import { ITestFilter } from "../types";
 import escapeRegExp from "./escapeRegExp";
+import { mapStringToId } from "./idMaps";
 
 export function mapTestIdsToTestFilter(tests: string[]): ITestFilter | null {
+  // check if we are running all projects.
   if (tests[0] && tests[0] === "root") {
     return null;
   }
 
-  const results = tests
-    .map(t => t.split(RegExp(`${TEST_ID_SEPARATOR}|${DESCRIBE_ID_SEPARATOR}`)))
-    .reduce((acc, [f, ...rest]) => {
-      // add the file if it is not already in the list of files.
-      if (!acc.fileNames.includes(f)) {
-        acc.fileNames.push(f);
-      }
-      // add the tests to the tests if not already present.
-      if (rest && rest.length > 0) {
-        const testName = rest[rest.length - 1];
-        if (!acc.testNames.includes(testName)) {
-          acc.testNames.push(testName);
-        }
-      }
-      return acc;
-    }, {
-      fileNames: [] as string[],
-      testNames: [] as string[],
-    });
-    
+  const ids = tests.map(t => mapStringToId(t));
+
+  // if there are any ids that do not contain a fileName, then we should run all the tests in the project.
+  if (_.some(ids, x => !x.fileName)) {
+    return null;
+  }
+
   // we accumulate the file and test names into regex expressions.  Note we escape the names to avoid interpreting
   // any regex control characters in the file or test names.
+  const testNamePattern = ids.filter(x => x.testId).map(z => escapeRegExp(z.testId || "")).join("|");
+  const testFileNamePattern = ids.filter(x => x.fileName).map(z => escapeRegExp(z.fileName || "")).join("|");
+
   return {
-    testFileNamePattern: `(${results.fileNames.map(escapeRegExp).join("|")})`,
-    testNamePattern: results.testNames.length > 0 ? `(${results.testNames.map(escapeRegExp).join("|")})` : undefined,
+    testFileNamePattern,
+    testNamePattern,
   };
 }

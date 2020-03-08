@@ -5,7 +5,7 @@ import { lowerCaseDriveLetter, mapAssertionResultToTestId } from "./mapAssertion
 import { mapJestAssertionToTestDecorations } from "./mapJestAssertionToTestDecorations";
 import { DescribeNode, FileNode, FolderNode, Node, ProjectRootNode, TestNode, WorkspaceRootNode } from "./tree";
 
-export function mapJestTestResultsToTestEvents(jestResponse: IJestResponse, tree: WorkspaceRootNode | ProjectRootNode): TestEvent[] {
+export function mapJestTestResultsToTestEvents(jestResponse: IJestResponse, tree: ProjectRootNode): TestEvent[] {
   return _.flatMap(jestResponse.results.testResults, fileResult => {
     // TODO we cannot easily tell the difference between when we have failing tests and an error running a test file.
     // Currently we just check if there are any assertionResults.  Ideally it would be better if the status was 'errored'
@@ -17,14 +17,14 @@ export function mapJestTestResultsToTestEvents(jestResponse: IJestResponse, tree
             message:
               assertionResult.failureMessages?.length > 0 ? assertionResult.failureMessages.join("\n") : undefined,
             state: assertionResult.status,
-            test: mapAssertionResultToTestId(assertionResult, fileResult.name),
+            test: mapAssertionResultToTestId(assertionResult, fileResult.name, tree.id),
             type: "test",
           } as TestEvent),
       );
     }
 
     const lowerCaseFileName = lowerCaseDriveLetter(fileResult.name);
-    const matchingFileNode = searchWorkspaceRoot(tree, n => n.type === "file" && n.id === lowerCaseFileName);
+    const matchingFileNode = searchWorkspaceRoot(tree, n => n.type === "file" && n.id.endsWith(lowerCaseFileName));
     if (!matchingFileNode || matchingFileNode.type !== "file") {
       return [];
     }
