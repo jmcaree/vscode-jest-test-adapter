@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import util from "util";
+import { Log } from 'vscode-test-adapter-util';
 import RepoParserBase from "./RepoParserBase";
 import { RepoParser } from "./types";
 
@@ -11,13 +12,13 @@ const readFile = util.promisify(fs.readFile);
 class StandardParser extends RepoParserBase implements RepoParser {
   public type = "default";
 
-  constructor(private workspaceRoot: string) {
+  constructor(private workspaceRoot: string, private log: Log) {
     super();
   }
 
   public async getProjects() {
     const jestConfig = await getJestConfig(this.workspaceRoot);
-    const setupFile = await getJestSetupFile(jestConfig);
+    const setupFile = await getJestSetupFile(this.log, jestConfig);
 
     return Promise.resolve([
       {
@@ -71,15 +72,14 @@ const getTsConfig = async (workspaceRoot: string): Promise<string | undefined> =
   return undefined;
 };
 
-const getJestSetupFile = async (jestConfig?: string): Promise<string | undefined> => {
+const getJestSetupFile = async (log:Log, jestConfig?: string): Promise<string | undefined> => {
   if (jestConfig && (await exists(jestConfig))) {
     try {
       const buffer = await readFile(jestConfig);
       const config = JSON.parse(buffer.toString());
       return config.setupFiles[0] || config.setupFilesAfterEnv[0];
     } catch {
-      // TODO log something.
-      return undefined;
+      log.error(`Error trying to parse Jest setup file: ${jestConfig}`);
     }
   }
 

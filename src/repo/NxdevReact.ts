@@ -1,7 +1,8 @@
 import path from "path";
+import { Log } from 'vscode-test-adapter-util';
 import { exists, readFile } from "./NxdevAngular";
 import RepoParserBase from "./RepoParserBase";
-import { RepoParser } from "./types";
+import { ProjectConfig, RepoParser } from "./types";
 
 // TODO this is probably completely different.
 interface NxReact {
@@ -11,7 +12,7 @@ interface NxReact {
       options: {
         jestConfig: string;
         tsConfig: string;
-        setupFile: string;
+        setupFile?: string;
       };
     };
   };
@@ -20,11 +21,11 @@ interface NxReact {
 export class NxdevReact extends RepoParserBase implements RepoParser {
   public type = "Nx.dev React";
 
-  constructor(private workspaceRoot: string) {
+  constructor(private workspaceRoot: string, private log: Log) {
     super();
   }
 
-  public async getProjects() {
+  public async getProjects(): Promise<ProjectConfig[]> {
     const buffer = await readFile(path.resolve(this.workspaceRoot, "workspace.json"));
     const reactConfig = JSON.parse(buffer.toString());
 
@@ -45,7 +46,7 @@ export class NxdevReact extends RepoParserBase implements RepoParser {
           projectName,
           // TODO this is assuming that the project root is where the jest config is.
           rootPath: path.resolve(this.workspaceRoot, path.dirname(options.jestConfig)),
-          setupFile: path.resolve(this.workspaceRoot, options.setupFile),
+          setupFile: options.setupFile && path.resolve(this.workspaceRoot, options.setupFile),
           tsConfig: path.resolve(this.workspaceRoot, options.tsConfig),
         };
       });

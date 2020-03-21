@@ -1,8 +1,9 @@
 import fs from "fs";
 import path from "path";
 import util from "util";
+import { Log } from 'vscode-test-adapter-util';
 import RepoParserBase from "./RepoParserBase";
-import { RepoParser } from "./types";
+import { ProjectConfig, RepoParser } from "./types";
 
 // the following requires Node 8 minimum.
 export const exists = util.promisify(fs.exists);
@@ -15,7 +16,7 @@ interface NxAngular {
       options: {
         jestConfig: string;
         tsConfig: string;
-        setupFile: string;
+        setupFile?: string;
       };
     };
   };
@@ -24,11 +25,11 @@ interface NxAngular {
 class NxdevAngular extends RepoParserBase implements RepoParser {
   public type = "Nx.dev Angular";
 
-  constructor(private workspaceRoot: string) {
+  constructor(private workspaceRoot: string, private log: Log) {
     super();
   }
 
-  public async getProjects() {
+  public async getProjects(): Promise<ProjectConfig[]> {
     // if we parse the angular.json file we get all the config we need.
     // Note that we filter out projects that do not have a jest builder.
     const angularJsonPath = path.resolve(this.workspaceRoot, "angular.json");
@@ -50,7 +51,7 @@ class NxdevAngular extends RepoParserBase implements RepoParser {
           projectName,
           // TODO this is assuming that the project root is where the jest config is.
           rootPath: path.resolve(this.workspaceRoot, path.dirname(options.jestConfig)),
-          setupFile: path.resolve(this.workspaceRoot, options.setupFile),
+          setupFile: options.setupFile && path.resolve(this.workspaceRoot, options.setupFile),
           tsConfig: path.resolve(this.workspaceRoot, options.tsConfig),
         };
       });
