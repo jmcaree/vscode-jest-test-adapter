@@ -6,7 +6,7 @@ function filterTree(
   tree: WorkspaceRootNode | ProjectRootNode,
   testNames: string[],
 ): WorkspaceRootNode | ProjectRootNode {
-  if (testNames.length === 1 && testNames[0] === "root") {
+  if (testNames.length === 0 || testNames[0] === "root") {
     return tree;
   }
 
@@ -27,6 +27,11 @@ const filterWorkspace = (tree: WorkspaceRootNode, testNames: string[]): Workspac
 };
 
 const filterProject = (project: ProjectRootNode, testNames: string[]): ProjectRootNode => {
+  // if we have been passed a test name that is an exact match for a project, then we should return the whole project.
+  if (testNames.some(t => t === project.id)) {
+    return project;
+  }
+
   return {
     ...project,
     files: filterFiles(project.files, testNames),

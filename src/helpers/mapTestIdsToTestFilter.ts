@@ -4,8 +4,7 @@ import escapeRegExp from "./escapeRegExp";
 import { mapStringToId } from "./idMaps";
 
 export function mapTestIdsToTestFilter(tests: string[]): ITestFilter | null {
-  // check if we are running all projects.
-  if (tests[0] && tests[0] === "root") {
+  if (tests.length === 0 || tests.some(t => t === "root")) {
     return null;
   }
 

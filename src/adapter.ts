@@ -1,4 +1,4 @@
-import _ from 'lodash';
+import _ from "lodash";
 import * as vscode from "vscode";
 import {
   RetireEvent,
@@ -13,7 +13,7 @@ import {
 import { Log } from "vscode-test-adapter-util";
 import { emitTestCompleteRootNode, emitTestRunningRootNode } from "./helpers/emitTestCompleteRootNode";
 import { filterTree } from "./helpers/filterTree";
-import { mapStringToId } from './helpers/idMaps';
+import { mapIdToString, mapStringToId } from "./helpers/idMaps";
 import { initProjectWorkspace } from "./helpers/initProjectWorkspace";
 import { mapJestTestResultsToTestEvents } from "./helpers/mapJestTestResultsToTestEvents";
 import { mapTestIdsToTestFilter } from "./helpers/mapTestIdsToTestFilter";
@@ -110,37 +110,10 @@ export default class JestTestAdapter implements TestAdapter {
     this.testStatesEmitter.fire({ tests, type: "started" });
 
     try {
-      const eventEmitter = (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) =>
-        this.testStatesEmitter.fire(data);
-
-      const pathToJest = this.options.pathToJest(this.workspace);
-
-      // determine which projects we should run.
-      let projects: ProjectRootNode[];
-      if (_.some(tests, t => t === "root")) {
-        projects = this.tree.projects;
-      } else {
-        projects = this.tree.projects.filter(p => _.some(tests, t => mapStringToId(t).projectId === p.id))
-      }
-
       await Promise.all(
-        projects.map(async p => {
-          const testFilter = mapTestIdsToTestFilter(tests);
-
-          // we emit events to notify which tests we are running.
-          const filteredTree = filterTree(p, tests);
-          emitTestRunningRootNode(filteredTree, eventEmitter);
-
-          // begin running the tests in Jest.
-          const projectWorkspace = initProjectWorkspace(p.configPath, pathToJest, p.rootPath);
-          const jestResponse = await this.jestManager.runTests(testFilter, projectWorkspace);
-
-          if (jestResponse) {
-            // emit the completion events.
-            const testEvents = mapJestTestResultsToTestEvents(jestResponse, filteredTree);
-            emitTestCompleteRootNode(filteredTree, testEvents, eventEmitter);
-          }
-        }),
+        this.determineProjectsAndTestsToRun(tests).map(({ project, testsToRun }) =>
+          this.runTestsForProject(project, testsToRun),
+        ),
       );
     } catch (error) {
       this.log.error("Error running tests", JSON.stringify(error));
@@ -192,6 +165,49 @@ export default class JestTestAdapter implements TestAdapter {
       disposable.dispose();
     }
     this.disposables = [];
+  }
+
+  private determineProjectsAndTestsToRun(
+    tests: string[],
+  ): Array<{ project: ProjectRootNode; testsToRun: string[]}> {
+    if (_.some(tests, t => t === "root")) {
+      // since at least one of the requested tests is "root" then we run all projects and all tests.  Note there should
+      // only ever be one entry in the tests array.
+      return this.tree.projects.map(project => ({ project, testsToRun: ["root"] }));
+    } else {
+      const testIds = tests.map(mapStringToId);
+
+      return this.tree.projects
+        .filter(p => _.some(testIds, t => t.projectId === p.id))
+        .map(project => {
+          const testsForProject = testIds.filter(t => t.projectId === project.id).map(mapIdToString);
+          const testsToRun = testsForProject.length > 0 ? testsForProject : ["root"];
+          return { project, testsToRun };
+        });
+    }
+  }
+
+  private async runTestsForProject(projects: ProjectRootNode, testsToRun: string[]): Promise<void> {
+    const eventEmitter = (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) =>
+      this.testStatesEmitter.fire(data);
+
+    const pathToJest = this.options.pathToJest(this.workspace);
+
+    const testFilter = mapTestIdsToTestFilter(testsToRun);
+
+    // we emit events to notify which tests we are running.
+    const filteredTree = filterTree(projects, testsToRun);
+    emitTestRunningRootNode(filteredTree, eventEmitter);
+
+    // begin running the tests in Jest.
+    const projectWorkspace = initProjectWorkspace(projects.configPath, pathToJest, projects.rootPath);
+    const jestResponse = await this.jestManager.runTests(testFilter, projectWorkspace);
+
+    if (jestResponse) {
+      // emit the completion events.
+      const testEvents = mapJestTestResultsToTestEvents(jestResponse, filteredTree);
+      emitTestCompleteRootNode(filteredTree, testEvents, eventEmitter);
+    }
   }
 
   private handleProjectsChanged(event: ProjectsChangedEvent) {
