@@ -1,5 +1,4 @@
 import path from "path";
-import { Log } from 'vscode-test-adapter-util';
 import { exists, readFile } from "./NxdevAngular";
 import RepoParserBase from "./RepoParserBase";
 import { ProjectConfig, RepoParser } from "./types";
@@ -21,7 +20,7 @@ interface NxReact {
 export class NxdevReact extends RepoParserBase implements RepoParser {
   public type = "Nx.dev React";
 
-  constructor(private workspaceRoot: string, private log: Log) {
+  constructor(private workspaceRoot: string) {
     super();
   }
 
