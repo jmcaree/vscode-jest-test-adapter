@@ -1,12 +1,13 @@
-import { JestSettings, ProjectWorkspace } from "jest-editor-support";
+import { JestSettings } from "jest-editor-support";
 import _ from "lodash";
 import * as vscode from "vscode";
 import { Log } from "vscode-test-adapter-util";
-import { createTree, mergeTree } from "./helpers/createTree";
+import { mergeTree } from "./helpers/createTree";
 import deleteFileFromTree from "./helpers/deleteFileFromTree";
-import { createRootNode, RootNode } from "./helpers/tree";
+import { createProjectNode, ProjectRootNode } from "./helpers/tree";
+import { ProjectConfig } from './repo';
 import TestParser, { createMatcher } from "./TestParser";
-import { EnvironmentChangedEvent, FileType, IDisposable, Matcher, TestsChangedEvent, TestState } from "./types";
+import { EnvironmentChangedEvent, FileType, IDisposable, Matcher, ProjectTestsChangedEvent, ProjectTestState } from "./types";
 
 const getFileType = (filePath: string, matcher: Matcher): FileType => {
   if (matcher(filePath)) {
@@ -33,7 +34,7 @@ const isConfigFile = (filePath: string): boolean => {
 class TestLoader {
   private readonly disposables: IDisposable[] = [];
   private readonly environmentChangedEmitter: vscode.EventEmitter<EnvironmentChangedEvent>;
-  private tree: RootNode = createRootNode("not initialized");
+  private tree: ProjectRootNode;
   private testFiles: Set<string> = new Set<string>();
   private promise: Promise<any> | null = null; // TODO maybe this should be a cancelable promise?
   private testParser: TestParser;
@@ -41,10 +42,12 @@ class TestLoader {
   public constructor(
     private readonly settings: JestSettings,
     private readonly log: Log,
-    private readonly projectWorkspace: ProjectWorkspace,
+    private readonly projectConfig: ProjectConfig,
   ) {
+    this.tree = createProjectNode(projectConfig.projectName, projectConfig.projectName, projectConfig.rootPath, projectConfig.jestConfig!);
+
     this.environmentChangedEmitter = new vscode.EventEmitter<EnvironmentChangedEvent>();
-    this.testParser = new TestParser(this.projectWorkspace.rootPath, this.log, this.settings);
+    this.testParser = new TestParser(projectConfig.rootPath, this.log, this.settings);
     const fileWatcher = vscode.workspace.createFileSystemWatcher("**/*");
 
     const matcher = createMatcher(this.settings);
@@ -59,7 +62,7 @@ class TestLoader {
     return this.environmentChangedEmitter.event;
   }
 
-  public async getTestState(forceReload: boolean = false): Promise<TestState> {
+  public async getTestState(forceReload: boolean = false): Promise<ProjectTestState> {
     if (forceReload) {
       if (this.promise) {
         // TODO handle if we are force reloading with an existing promise.  Need to cancel.
@@ -73,7 +76,7 @@ class TestLoader {
         .parseAll()
         .then(parsedResults => {
           parsedResults.map(r => r.file).forEach(f => this.testFiles.add(f));
-          this.tree = createTree(parsedResults, this.projectWorkspace.rootPath);
+          this.tree = mergeTree(this.tree, parsedResults, this.projectConfig.rootPath);
         })
         .then(() => this.log.info(`Force loading process completed.`))
         .catch(error => this.log.error("Error while reloading all tests.", error))
@@ -111,7 +114,7 @@ class TestLoader {
       case "Test":
         this.testFiles.add(filePath);
         const parseResults = this.testParser.parseFiles([filePath]);
-        this.tree = mergeTree(this.tree, parseResults, this.projectWorkspace.rootPath);
+        this.tree = mergeTree(this.tree, parseResults, this.projectConfig.rootPath);
         this.environmentChangedEmitter.fire({
           ...getDefaultTestEnvironmentChangedEvent(this.testFiles, this.tree),
           addedTestFiles: [filePath],
@@ -163,7 +166,7 @@ class TestLoader {
         this.testFiles.add(filePath);
         const parseResults = this.testParser.parseFiles([filePath]);
         // Removing the file from the tree and then merge it back in should correctly update the tree.
-        this.tree = mergeTree(deleteFileFromTree(this.tree, filePath), parseResults, this.projectWorkspace.rootPath);
+        this.tree = mergeTree(deleteFileFromTree(this.tree, filePath), parseResults, this.projectConfig.rootPath);
         this.environmentChangedEmitter.fire({
           ...getDefaultTestEnvironmentChangedEvent(this.testFiles, this.tree),
           invalidatedTestIds: [filePath],
@@ -174,7 +177,7 @@ class TestLoader {
   }
 }
 
-const getDefaultTestEnvironmentChangedEvent = (testFiles: Set<string>, testSuite: RootNode): TestsChangedEvent => {
+const getDefaultTestEnvironmentChangedEvent = (testFiles: Set<string>, testSuite: ProjectRootNode): ProjectTestsChangedEvent => {
   const testFilesArray = [...testFiles];
 
   return {

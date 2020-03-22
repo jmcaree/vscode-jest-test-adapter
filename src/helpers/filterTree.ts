@@ -1,13 +1,41 @@
-import { DescribeNode, FileNode, FolderNode, RootNode, TestNode } from "./tree";
+import { DescribeNode, FileNode, FolderNode, ProjectRootNode, TestNode, WorkspaceRootNode } from "./tree";
 
-const filterTree = (tree: RootNode, testNames: string[]): RootNode => {
-  if (testNames.length === 1 && testNames[0] === "root") {
+function filterTree(tree: WorkspaceRootNode, testNames: string[]): WorkspaceRootNode;
+function filterTree(tree: ProjectRootNode, testNames: string[]): ProjectRootNode;
+function filterTree(
+  tree: WorkspaceRootNode | ProjectRootNode,
+  testNames: string[],
+): WorkspaceRootNode | ProjectRootNode {
+  if (testNames.length === 0 || testNames[0] === "root") {
     return tree;
   }
+
+  switch (tree.type) {
+    case "workspaceRootNode":
+      return filterWorkspace(tree as WorkspaceRootNode, testNames);
+
+    case "projectRootNode":
+      return filterProject(tree as ProjectRootNode, testNames);
+  }
+}
+
+const filterWorkspace = (tree: WorkspaceRootNode, testNames: string[]): WorkspaceRootNode => {
   return {
     ...tree,
-    files: filterFiles(tree.files, testNames),
-    folders: filterFolders(tree.folders, testNames),
+    projects: tree.projects.map(p => filterProject(p, testNames)),
+  };
+};
+
+const filterProject = (project: ProjectRootNode, testNames: string[]): ProjectRootNode => {
+  // if we have been passed a test name that is an exact match for a project, then we should return the whole project.
+  if (testNames.some(t => t === project.id)) {
+    return project;
+  }
+
+  return {
+    ...project,
+    files: filterFiles(project.files, testNames),
+    folders: filterFolders(project.folders, testNames),
   };
 };
 

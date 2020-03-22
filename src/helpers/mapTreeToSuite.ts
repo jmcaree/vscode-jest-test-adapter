@@ -1,11 +1,18 @@
 import _ from "lodash";
 import { TestInfo, TestSuiteInfo } from "vscode-test-adapter-api";
-import { DescribeNode, FileNode, FolderNode, RootNode, TestNode } from "./tree";
+import { DescribeNode, FileNode, FolderNode, ProjectRootNode, TestNode, WorkspaceRootNode } from "./tree";
 
-const mapTreeToSuite = (tree: RootNode): TestSuiteInfo => ({
-  children: tree.folders.map(mapFolderNodeToTestSuite).concat(tree.files.map(mapFileNodeToTestSuite)),
-  id: "root",
-  label: "Jest Test Adapter",
+const mapWorkspaceRootToSuite = ({ label, id, projects }: WorkspaceRootNode): TestSuiteInfo => ({
+  children: projects.map(mapProjectRootNodeToSuite),
+  id,
+  label,
+  type: "suite",
+});
+
+const mapProjectRootNodeToSuite = ({label, id, files, folders}: ProjectRootNode): TestSuiteInfo => ({
+  children: folders.map(mapFolderNodeToTestSuite).concat(files.map(mapFileNodeToTestSuite)),
+  id,
+  label,
   type: "suite",
 });
 
@@ -44,4 +51,4 @@ const mapTestToTestInfo = (test: TestNode): TestInfo => ({
   type: "test",
 });
 
-export { mapTreeToSuite };
+export { mapWorkspaceRootToSuite };

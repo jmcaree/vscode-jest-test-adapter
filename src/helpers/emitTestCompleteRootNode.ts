@@ -1,8 +1,24 @@
 import { TestEvent, TestRunFinishedEvent, TestRunStartedEvent, TestSuiteEvent } from "vscode-test-adapter-api";
-import { DescribeNode, FileNode, FolderNode, RootNode, TestNode } from "./tree";
+import { DescribeNode, FileNode, FolderNode, ProjectRootNode, TestNode, WorkspaceRootNode } from "./tree";
 
 const emitTestCompleteRootNode = (
-  root: RootNode,
+  root: WorkspaceRootNode | ProjectRootNode,
+  testEvents: TestEvent[],
+  eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
+): void => {
+  switch (root.type) {
+    case "workspaceRootNode":
+      emitTestCompleteWorkspaceRootNode(root, testEvents, eventEmitter);
+      break;
+
+    case "projectRootNode":
+      emitTestCompleteProjectRootNode(root, testEvents, eventEmitter);
+      break;
+  }
+};
+
+const emitTestCompleteWorkspaceRootNode = (
+  root: WorkspaceRootNode,
   testEvents: TestEvent[],
   eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
 ) => {
@@ -11,6 +27,20 @@ const emitTestCompleteRootNode = (
     suite: root.id,
     type: "suite",
   });
+  root.projects.forEach(p => emitTestCompleteProjectRootNode(p, testEvents, eventEmitter));
+};
+
+const emitTestCompleteProjectRootNode = (
+  root: ProjectRootNode,
+  testEvents: TestEvent[],
+  eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
+) => {
+  eventEmitter({
+    state: "completed",
+    suite: root.id,
+    type: "suite",
+  });
+
   root.folders.forEach(f => emitTestCompleteFolder(f, testEvents, eventEmitter));
   root.files.forEach(f => emitTestCompleteFile(f, testEvents, eventEmitter));
 };
@@ -53,7 +83,7 @@ const emitTestCompleteDescribe = (
     suite: describe.id,
     type: "suite",
   });
-  describe.describeBlocks.forEach(d => emitTestCompleteDescribe(d, testEvents, eventEmitter))
+  describe.describeBlocks.forEach(d => emitTestCompleteDescribe(d, testEvents, eventEmitter));
   describe.tests.forEach(t => emitTestCompleteTest(t, testEvents, eventEmitter));
 };
 
@@ -69,7 +99,22 @@ const emitTestCompleteTest = (
 };
 
 const emitTestRunningRootNode = (
-  root: RootNode,
+  root: WorkspaceRootNode | ProjectRootNode,
+  eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
+): void => {
+  switch (root.type) {
+    case "workspaceRootNode":
+      emitTestRunningWorkspaceRootNode(root, eventEmitter);
+      break;
+
+    case "projectRootNode":
+      emitTestRunningProjectRootNode(root, eventEmitter);
+      break;
+  }
+};
+
+const emitTestRunningWorkspaceRootNode = (
+  root: WorkspaceRootNode,
   eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
 ) => {
   eventEmitter({
@@ -77,6 +122,20 @@ const emitTestRunningRootNode = (
     suite: root.id,
     type: "suite",
   });
+
+  root.projects.forEach(p => emitTestRunningProjectRootNode(p, eventEmitter));
+};
+
+const emitTestRunningProjectRootNode = (
+  root: ProjectRootNode,
+  eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
+) => {
+  eventEmitter({
+    state: "running",
+    suite: root.id,
+    type: "suite",
+  });
+
   root.folders.forEach(f => emitTestRunningFolder(f, eventEmitter));
   root.files.forEach(f => emitTestRunningFile(f, eventEmitter));
 };
@@ -116,7 +175,7 @@ const emitTestRunningDescribe = (
     suite: describe.id,
     type: "suite",
   });
-  describe.describeBlocks.forEach(d => emitTestRunningDescribe(d, eventEmitter))
+  describe.describeBlocks.forEach(d => emitTestRunningDescribe(d, eventEmitter));
   describe.tests.forEach(t => emitTestRunningTest(t, eventEmitter));
 };
 

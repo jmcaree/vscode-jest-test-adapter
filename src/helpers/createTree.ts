@@ -1,32 +1,8 @@
 import { DescribeBlock, IParseResults, ItBlock, Location, ParsedNodeTypes } from "jest-editor-support";
 import _ from "lodash";
 import { parse, sep as pathSeparator } from "path";
-import { DESCRIBE_ID_SEPARATOR, TEST_ID_SEPARATOR } from "../constants";
-import { createFileNode, createFolderNode, createRootNode, DescribeNode, FolderNode, RootNode, TestNode } from "./tree";
-
-interface ParseInfo {
-  /**
-   * The name of the file with extension without the full path.
-   */
-  fileName: string;
-  /**
-   * An array with the folder details from the workspace root to the test file.
-   */
-  folders: Array<{
-    /**
-     * The full path to the folder.
-     */
-    id: string;
-    /**
-     * The name of the sub folder.
-     */
-    name: string;
-  }>;
-  /**
-   * The original parse result.
-   */
-  parseResult: IParseResults;
-}
+import { DESCRIBE_ID_SEPARATOR, PROJECT_ID_SEPARATOR, TEST_ID_SEPARATOR } from "../constants";
+import { createFileNode, createFolderNode, DescribeNode, FolderNode, ProjectRootNode, TestNode } from "./tree";
 
 /**
  * A type that contains the same data as the DescribeBlock but allows for nesting child describe nodes and tests.  Only
@@ -35,42 +11,43 @@ interface ParseInfo {
 type Describe = Omit<DescribeBlock, "filter" | "addChild"> & { describeBlocks: Describe[]; tests: ItBlock[] };
 
 /**
- * Creates a tree from the Jest Test Adapter parse results suitable
+ * Merges a tree with updated Jest Test Adapter parse results.
+ * @param tree The existing project parse tree to merge the new results with.
  * @param parseResults The parse results from the Jest Test Adapter.
- * @param workspaceRoot The root path of the current workspace.
+ * @param projectRoot The root path of the current project.
  */
-const createTree = (parseResults: IParseResults[], workspaceRoot: string): RootNode => {
-  const root: RootNode = createRootNode(workspaceRoot);
-  return mergeTree(root, parseResults, workspaceRoot);
-}
-
-const mergeTree = (tree: RootNode, parseResults: IParseResults[], workspaceRoot: string): RootNode => {
-  const infos = _.chain(parseResults)
-    .map(x => toParseInfo(x, workspaceRoot))
-    .sortBy(x => x.folders.length > 0)
-    .value();
-
-  infos.forEach(info => {
-    const { file, describeBlocks, itBlocks } = info.parseResult;
+const mergeTree = (tree: ProjectRootNode, parseResults: IParseResults[], projectRoot: string): ProjectRootNode => {
+  parseResults.forEach(parseResult => {
+    const { file, describeBlocks, itBlocks } = parseResult;
 
     // process all the folder nodes...
-    let currentFolderNode: RootNode | FolderNode = tree;
-    info.folders.forEach(f => {
-      const existingFolderNode = currentFolderNode.folders.find(n => n.id === f.id);
+    let currentFolderNode: ProjectRootNode | FolderNode = tree;
+
+    const { folders, fileName, rootPath } = parseFolderAndFileNames(tree, parseResult);
+
+    folders.forEach((folderName, i) => {
+      let expectedFolderId = `${currentFolderNode.id}${PROJECT_ID_SEPARATOR}${rootPath}${pathSeparator}${folderName}`;
+      if (i !== 0) {
+        expectedFolderId = `${currentFolderNode.id}${pathSeparator}${folderName}`;
+      }
+
+      const existingFolderNode = currentFolderNode.folders.find(n => n.id === expectedFolderId);
+
       // create folder node and set current node to new node.
       if (existingFolderNode) {
         currentFolderNode = existingFolderNode;
       } else {
-        const newNode = createFolderNode(f.id, f.name);
+        const newNode = createFolderNode(expectedFolderId, folderName);
         currentFolderNode.folders = currentFolderNode.folders.concat(newNode);
         currentFolderNode = newNode;
       }
     });
 
     // process file node...
-    let fileNode = currentFolderNode.files.find(f => f.id === file);
+    const expectedFileNodeId = `${tree.id}${PROJECT_ID_SEPARATOR}${file}`
+    let fileNode = currentFolderNode.files.find(f => f.id === expectedFileNodeId);
     if (!fileNode) {
-      fileNode = createFileNode(file, info.fileName, file);
+      fileNode = createFileNode(expectedFileNodeId, fileName, file);
       currentFolderNode.files = currentFolderNode.files.concat(fileNode);
     }
 
@@ -78,6 +55,7 @@ const mergeTree = (tree: RootNode, parseResults: IParseResults[], workspaceRoot:
       itBlocks,
       describeBlocks,
       file,
+      fileNode.id
     );
 
     // TODO make immutable.
@@ -88,46 +66,33 @@ const mergeTree = (tree: RootNode, parseResults: IParseResults[], workspaceRoot:
   return tree;
 };
 
-const toParseInfo = (result: IParseResults, workspaceRoot: string): ParseInfo => {
+const parseFolderAndFileNames = (
+  projectRootNode: ProjectRootNode,
+  result: IParseResults,
+): { folders: string[]; fileName: string; rootPath: string } => {
   const { dir: directory, base: fileName } = parse(result.file);
 
-  if (!result.file.startsWith(workspaceRoot)) {
+  if (!result.file.startsWith(projectRootNode.rootPath)) {
     throw Error("Given file is not within workspace root.");
   }
 
-  return directory
-    .replace(workspaceRoot, "")
+  const folders = directory
+    .replace(projectRootNode.rootPath, "")
     .split(pathSeparator)
-    .filter(p => p.length !== 0)
-    .reduce(
-      (previousValue, currentValue) => {
-        const id = _.join([workspaceRoot, ...previousValue.folders.map(f => f.name), currentValue], pathSeparator);
+    .filter(p => p.length !== 0);
 
-        return {
-          ...previousValue,
-          folders: previousValue.folders.concat({
-            id,
-            name: currentValue,
-          }),
-        };
-      },
-      {
-        fileName,
-        folders: [] as Array<{ id: string; name: string }>,
-        parseResult: result,
-      },
-    );
+  return { folders, fileName, rootPath: projectRootNode.rootPath };
 };
 
-const convertDescribeBlocksAndTests = (itBlocks: ItBlock[], describeBlocks: DescribeBlock[], file: string) => {
+const convertDescribeBlocksAndTests = (itBlocks: ItBlock[], describeBlocks: DescribeBlock[], file: string, parentId: string) => {
   const { describeBlocks: nestedDescribeBlocks, tests: standaloneTests } = mergeDescribeBlocksAndTests(
     itBlocks,
     describeBlocks,
   );
 
   return {
-    describeBlocks: nestedDescribeBlocks.map(d => createDescribeNode(d, file, file)),
-    tests: standaloneTests.map(t => createTestNode(t, file, file)),
+    describeBlocks: nestedDescribeBlocks.map(d => createDescribeNode(d, parentId, file)),
+    tests: standaloneTests.map(t => createTestNode(t, parentId, file)),
   };
 };
 
@@ -235,4 +200,4 @@ const isNested = (potentialChild: Describe | ItBlock, containingDescribe: Descri
   return startIsBefore && endIsAfter;
 };
 
-export { createTree, mergeTree };
+export { mergeTree };
