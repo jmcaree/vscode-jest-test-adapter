@@ -1,11 +1,11 @@
 // A dummy test file to ensure that tests are working in CI/CD pipeline before adding real tests.
 
-import { createTree } from "../createTree";
+import { mergeTree } from "../createTree";
+import { createProjectNode } from "../tree";
 
-// tslint:disable: no-empty
 describe("Dummy tests", () => {
   test("A dummy test", () => {
-    const result = createTree([], "")
+    const result = mergeTree(createProjectNode("", "", "", ""), [], "")
     expect(result).not.toBeNull();
   })
 })
