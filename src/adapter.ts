@@ -19,6 +19,7 @@ import { mapJestTestResultsToTestEvents } from "./helpers/mapJestTestResultsToTe
 import { mapTestIdsToTestFilter } from "./helpers/mapTestIdsToTestFilter";
 import { mapWorkspaceRootToSuite } from "./helpers/mapTreeToSuite";
 import { createWorkspaceRootNode, ProjectRootNode, WorkspaceRootNode } from "./helpers/tree";
+import { convertErrorToString } from "./helpers/utils";
 import JestManager, { JestTestAdapterOptions } from "./JestManager";
 import ProjectManager from "./ProjectManager";
 import { IDisposable, ProjectsChangedEvent } from "./types";
@@ -89,8 +90,9 @@ export default class JestTestAdapter implements TestAdapter {
 
       this.testsEmitter.fire({ suite, type: "finished" });
     } catch (error) {
-      this.log.error("Error loading tests", JSON.stringify(error));
-      this.testsEmitter.fire({ type: "finished", errorMessage: JSON.stringify(error) });
+      const errorMessage = convertErrorToString(error);
+      this.log.error("Error loading tests", errorMessage);
+      this.testsEmitter.fire({ type: "finished", errorMessage });
     }
 
     this.retireAllTests();
@@ -116,7 +118,7 @@ export default class JestTestAdapter implements TestAdapter {
         ),
       );
     } catch (error) {
-      this.log.error("Error running tests", JSON.stringify(error));
+      this.log.error("Error running tests", convertErrorToString(error));
       this.cancel();
     }
 
@@ -167,9 +169,7 @@ export default class JestTestAdapter implements TestAdapter {
     this.disposables = [];
   }
 
-  private determineProjectsAndTestsToRun(
-    tests: string[],
-  ): Array<{ project: ProjectRootNode; testsToRun: string[]}> {
+  private determineProjectsAndTestsToRun(tests: string[]): Array<{ project: ProjectRootNode; testsToRun: string[] }> {
     if (_.some(tests, t => t === "root")) {
       // since at least one of the requested tests is "root" then we run all projects and all tests.  Note there should
       // only ever be one entry in the tests array.
@@ -231,8 +231,9 @@ export default class JestTestAdapter implements TestAdapter {
 
       this.testsEmitter.fire({ suite, type: "finished" });
     } catch (error) {
-      this.log.error("Error loading tests", JSON.stringify(error));
-      this.testsEmitter.fire({ type: "finished", errorMessage: JSON.stringify(error) });
+      const errorAsString = convertErrorToString(error);
+      this.log.error("Error loading tests", errorAsString);
+      this.testsEmitter.fire({ type: "finished", errorMessage: errorAsString });
     }
   }
 

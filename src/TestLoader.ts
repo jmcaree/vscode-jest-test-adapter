@@ -5,9 +5,17 @@ import { Log } from "vscode-test-adapter-util";
 import { mergeTree } from "./helpers/createTree";
 import deleteFileFromTree from "./helpers/deleteFileFromTree";
 import { createProjectNode, ProjectRootNode } from "./helpers/tree";
-import { ProjectConfig } from './repo';
+import { convertErrorToString } from "./helpers/utils";
+import { ProjectConfig } from "./repo";
 import TestParser, { createMatcher } from "./TestParser";
-import { EnvironmentChangedEvent, FileType, IDisposable, Matcher, ProjectTestsChangedEvent, ProjectTestState } from "./types";
+import {
+  EnvironmentChangedEvent,
+  FileType,
+  IDisposable,
+  Matcher,
+  ProjectTestsChangedEvent,
+  ProjectTestState,
+} from "./types";
 
 const getFileType = (filePath: string, matcher: Matcher): FileType => {
   if (matcher(filePath)) {
@@ -44,7 +52,12 @@ class TestLoader {
     private readonly log: Log,
     private readonly projectConfig: ProjectConfig,
   ) {
-    this.tree = createProjectNode(projectConfig.projectName, projectConfig.projectName, projectConfig.rootPath, projectConfig.jestConfig!);
+    this.tree = createProjectNode(
+      projectConfig.projectName,
+      projectConfig.projectName,
+      projectConfig.rootPath,
+      projectConfig.jestConfig!,
+    );
 
     this.environmentChangedEmitter = new vscode.EventEmitter<EnvironmentChangedEvent>();
     this.testParser = new TestParser(projectConfig.rootPath, this.log, this.settings);
@@ -79,7 +92,7 @@ class TestLoader {
           this.tree = mergeTree(this.tree, parsedResults, this.projectConfig.rootPath);
         })
         .then(() => this.log.info(`Force loading process completed.`))
-        .catch(error => this.log.error("Error while reloading all tests.", error))
+        .catch(error => this.log.error("Error while reloading all tests.", convertErrorToString(error)))
         .finally(() => (self.promise = null));
 
       await this.promise;
@@ -177,7 +190,10 @@ class TestLoader {
   }
 }
 
-const getDefaultTestEnvironmentChangedEvent = (testFiles: Set<string>, testSuite: ProjectRootNode): ProjectTestsChangedEvent => {
+const getDefaultTestEnvironmentChangedEvent = (
+  testFiles: Set<string>,
+  testSuite: ProjectRootNode,
+): ProjectTestsChangedEvent => {
   const testFilesArray = [...testFiles];
 
   return {

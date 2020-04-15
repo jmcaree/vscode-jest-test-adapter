@@ -1,7 +1,8 @@
 import fs from "fs";
 import path from "path";
 import util from "util";
-import { Log } from 'vscode-test-adapter-util';
+import { Log } from "vscode-test-adapter-util";
+import { getJestConfigInDirectory } from "../helpers/utils";
 import RepoParserBase from "./RepoParserBase";
 import { RepoParser } from "./types";
 
@@ -54,14 +55,8 @@ const getProjectName = async (workspaceRoot: string): Promise<string> => {
   return "default";
 };
 
-const getJestConfig = async (workspaceRoot: string): Promise<string | undefined> => {
-  const tsConfigPath = path.resolve(workspaceRoot, "jest.config.js");
-  if (await exists(tsConfigPath)) {
-    return tsConfigPath;
-  }
-
-  return undefined;
-};
+const getJestConfig = async (workspaceRoot: string): Promise<string | undefined> =>
+  (await getJestConfigInDirectory(workspaceRoot)) ?? undefined;
 
 const getTsConfig = async (workspaceRoot: string): Promise<string | undefined> => {
   const tsConfigPath = path.resolve(workspaceRoot, "tsconfig.json");
@@ -72,7 +67,7 @@ const getTsConfig = async (workspaceRoot: string): Promise<string | undefined> =
   return undefined;
 };
 
-const getJestSetupFile = async (log:Log, jestConfig?: string): Promise<string | undefined> => {
+const getJestSetupFile = async (log: Log, jestConfig?: string): Promise<string | undefined> => {
   if (jestConfig && (await exists(jestConfig))) {
     try {
       const buffer = await readFile(jestConfig);
