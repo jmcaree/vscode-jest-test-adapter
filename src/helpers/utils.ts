@@ -6,12 +6,12 @@ const convertErrorToString = (error: Error): string => {
 };
 
 const getJestConfigInDirectory = async (directory: string): Promise<string | null> => {
-  const result= await cosmiconfig("jest", {stopDir: directory}).search(directory);
+  const result = await cosmiconfig("jest", { stopDir: directory }).search(directory);
   if (result === null) {
     return null;
   }
   // TODO in future we may be able to make use of the config object that is returned.
   return result.filepath;
-}
+};
 
 export { convertErrorToString, getJestConfigInDirectory };

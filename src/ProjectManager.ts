@@ -55,6 +55,12 @@ class ProjectManager {
       this.log.info(`Loading Jest settings from ${projectWorkspace.pathToConfig}...`);
       const settings = await getSettings(projectWorkspace);
 
+      if (settings.configs.length > 1) {
+        this.log.info(`More than one Jest config found.`, settings);
+      } else if (settings.configs[0]?.testRegex?.length > 1) {
+        this.log.info(`More than one Jest test regex found.`, settings);
+      }
+
       const testLoader = new TestLoader(settings, this.log, p);
       this.testLoaders.push(testLoader);
       this.disposables.push(testLoader.environmentChange(e => this.handleTestChange(e), this));

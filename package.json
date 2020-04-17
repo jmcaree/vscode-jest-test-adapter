@@ -106,11 +106,6 @@
           "scope": "resource",
           "type": "string"
         },
-        "jestTestExplorer.pathToJestConfig": {
-          "description": "Override the path to the Jest config file. The default behavior is to attempt to detect common configurations.",
-          "scope": "resource",
-          "type": "string"
-        },
         "jestTestExplorer.debugOutput": {
           "description": "Specifies where to display the output from the Debug process.",
           "default": "internalConsole",
