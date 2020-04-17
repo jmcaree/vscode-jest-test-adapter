@@ -14,13 +14,7 @@ function getJestAdapterOptions(): JestTestAdapterOptions {
         .get<string>("pathToJest") || pathToJestHelper(w)
     );
   };
-  const pathToConfig = () => {
-    return (
-      vscode.workspace
-        .getConfiguration("jestTestExplorer", null)
-        .get<string>("pathToJestConfig") || pathToConfigHelper()
-    );
-  };
+  const pathToConfig = () => pathToConfigHelper();
   return {
     debugOutput: vscode.workspace
       .getConfiguration("jestTestExplorer", null)

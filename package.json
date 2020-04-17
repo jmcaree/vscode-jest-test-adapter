@@ -47,6 +47,7 @@
   },
   "dependencies": {
     "@babel/traverse": "^7.7.4",
+    "cosmiconfig": "^6.0.0",
     "jest-editor-support": "^27.1.0",
     "lodash": "^4.17.15",
     "micromatch": "^4.0.2",
@@ -102,11 +103,6 @@
         },
         "jestTestExplorer.pathToJest": {
           "description": "Override the path to the Jest executable. The default behavior is to attempt to detect common configurations.",
-          "scope": "resource",
-          "type": "string"
-        },
-        "jestTestExplorer.pathToJestConfig": {
-          "description": "Override the path to the Jest config file. The default behavior is to attempt to detect common configurations.",
           "scope": "resource",
           "type": "string"
         },
