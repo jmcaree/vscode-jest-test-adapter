@@ -38,11 +38,13 @@ class ProjectManager {
   public async getTestState(): Promise<WorkspaceTestState> {
     if (!this.repoParser) {
       this.repoParser = await getRepoParser(this.workspace.uri.fsPath, this.log);
-      this.disposables.push(this.repoParser.projectChange(this.handleProjectChange));
-    }
-    if (!this.repoParser) {
-      this.log.error("No RepoParser available.");
-      return { suite: this.workspaceTestState };
+      if (this.repoParser) {
+        this.disposables.push(this.repoParser.projectChange(this.handleProjectChange));
+      } else {
+        // we return the default WorkspaceRootNode in the case we don't find a valid RepoParser.
+        this.log.info(`No RepoParser available for project: ${this.workspace.uri.fsPath}`);
+        return { suite: this.workspaceTestState };
+      }
     }
 
     const jestPath = this.options.pathToJest(this.workspace);
@@ -54,6 +56,12 @@ class ProjectManager {
 
       this.log.info(`Loading Jest settings from ${projectWorkspace.pathToConfig}...`);
       const settings = await getSettings(projectWorkspace);
+
+      if (settings.configs.length > 1) {
+        this.log.info(`More than one Jest config found.`, settings);
+      } else if (settings.configs[0]?.testRegex?.length > 1) {
+        this.log.info(`More than one Jest test regex found.`, settings);
+      }
 
       const testLoader = new TestLoader(settings, this.log, p);
       this.testLoaders.push(testLoader);

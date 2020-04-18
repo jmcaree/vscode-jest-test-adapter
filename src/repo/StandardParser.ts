@@ -1,7 +1,8 @@
 import fs from "fs";
 import path from "path";
 import util from "util";
-import { Log } from 'vscode-test-adapter-util';
+import { Log } from "vscode-test-adapter-util";
+import { convertErrorToString, getJestConfigInDirectory } from "../helpers/utils";
 import RepoParserBase from "./RepoParserBase";
 import { RepoParser } from "./types";
 
@@ -39,9 +40,9 @@ class StandardParser extends RepoParserBase implements RepoParser {
 const isStandard = async (workspaceRoot: string): Promise<boolean> => {
   // check that package.json and jest.config.js/ts exists.
   const packageJsonPath = path.resolve(workspaceRoot, "package.json");
-  const jestConfig = path.resolve(workspaceRoot, "jest.config.js");
+  const jestConfig = await getJestConfigInDirectory(workspaceRoot);
 
-  return (await exists(packageJsonPath)) && (await exists(jestConfig));
+  return (await exists(packageJsonPath)) && jestConfig !== null;
 };
 
 const getProjectName = async (workspaceRoot: string): Promise<string> => {
@@ -54,14 +55,8 @@ const getProjectName = async (workspaceRoot: string): Promise<string> => {
   return "default";
 };
 
-const getJestConfig = async (workspaceRoot: string): Promise<string | undefined> => {
-  const tsConfigPath = path.resolve(workspaceRoot, "jest.config.js");
-  if (await exists(tsConfigPath)) {
-    return tsConfigPath;
-  }
-
-  return undefined;
-};
+const getJestConfig = async (workspaceRoot: string): Promise<string | undefined> =>
+  (await getJestConfigInDirectory(workspaceRoot)) ?? undefined;
 
 const getTsConfig = async (workspaceRoot: string): Promise<string | undefined> => {
   const tsConfigPath = path.resolve(workspaceRoot, "tsconfig.json");
@@ -72,14 +67,21 @@ const getTsConfig = async (workspaceRoot: string): Promise<string | undefined> =
   return undefined;
 };
 
-const getJestSetupFile = async (log:Log, jestConfig?: string): Promise<string | undefined> => {
+const getJestSetupFile = async (log: Log, jestConfig?: string): Promise<string | undefined> => {
   if (jestConfig && (await exists(jestConfig))) {
     try {
       const buffer = await readFile(jestConfig);
       const config = JSON.parse(buffer.toString());
-      return config.setupFiles[0] || config.setupFilesAfterEnv[0];
-    } catch {
-      log.error(`Error trying to parse Jest setup file: ${jestConfig}`);
+      if (config.setupFiles && config.setupFiles.length > 0) {
+        // TODO what should we do if there is more than one file?
+        return config.setupFiles[0];
+      } else if (config.setupFilesAfterEnv && config.setupFilesAfterEnv.length > 0) {
+        // TODO what should we do if there is more than one file?
+        return config.setupFilesAfterEnv[0];
+      }
+      return undefined;
+    } catch (error) {
+      log.error(`Error trying to parse Jest setup file: ${jestConfig}`, convertErrorToString(error));
     }
   }
 
