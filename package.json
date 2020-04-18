@@ -60,7 +60,7 @@
     "@types/micromatch": "^4.0.1",
     "@types/node": "^13.1.4",
     "@types/webpack": "^4.41.11",
-    "@types/vscode": "^1.44.0",
+    "@types/vscode": "^1.30.0",
     "jest": "^25.3.0",
     "jest-junit": "^10.0.0",
     "prettier": "^2.0.4",
@@ -75,7 +75,7 @@
     "webpack-cli": "^3.3.11"
   },
   "engines": {
-    "vscode": "^1.44.0"
+    "vscode": "^1.30.0"
   },
   "extensionDependencies": [
     "hbenl.vscode-test-explorer"
