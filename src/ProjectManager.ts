@@ -66,7 +66,7 @@ class ProjectManager {
 
     this.workspaceTestState = {
       id: "root",
-      label: `${this.workspace.name} (${this.repoParser.type})`,
+      label: `${this.workspace.name}`,
       projects: testStates.map(x => x.suite),
       type: "workspaceRootNode",
     };
