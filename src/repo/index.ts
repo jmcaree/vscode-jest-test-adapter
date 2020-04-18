@@ -4,7 +4,10 @@ import { NxdevReact } from "./NxdevReact";
 import { StandardParser } from "./StandardParser";
 import { ProjectConfig, RepoParser } from "./types";
 
-const getRepoParser = async (workspaceRoot: string, log: Log) => {
+/**
+ * Returns a RepoParser if one matches the given workspaceRoot otherwise returns null.
+ */
+const getRepoParser = async (workspaceRoot: string, log: Log): Promise<RepoParser | null> => {
   const repoParsers: RepoParser[] = [
     new NxdevAngular(workspaceRoot),
     new NxdevReact(workspaceRoot),
@@ -15,7 +18,7 @@ const getRepoParser = async (workspaceRoot: string, log: Log) => {
     repoParsers.map(async p => ({ parser: p, match: await p.isMatch() })),
   ).then(x => x.filter(z => z.match).map(z => z.parser));
 
-  return matchingParsers[0];
+  return matchingParsers[0] ?? null;
 };
 
 export { ProjectConfig, RepoParser, getRepoParser };
