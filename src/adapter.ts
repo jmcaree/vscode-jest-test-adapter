@@ -19,10 +19,10 @@ import { mapJestTestResultsToTestEvents } from "./helpers/mapJestTestResultsToTe
 import { mapTestIdsToTestFilter } from "./helpers/mapTestIdsToTestFilter";
 import { mapWorkspaceRootToSuite } from "./helpers/mapTreeToSuite";
 import { createWorkspaceRootNode, ProjectRootNode, WorkspaceRootNode } from "./helpers/tree";
-import { convertErrorToString } from "./helpers/utils";
 import JestManager, { JestTestAdapterOptions } from "./JestManager";
 import ProjectManager from "./ProjectManager";
 import { IDisposable, ProjectsChangedEvent } from "./types";
+import { convertErrorToString } from "./utils";
 
 type TestStateCompatibleEvent = TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent;
 

@@ -5,7 +5,6 @@ import { Log } from "vscode-test-adapter-util";
 import { mergeTree } from "./helpers/createTree";
 import deleteFileFromTree from "./helpers/deleteFileFromTree";
 import { createProjectNode, ProjectRootNode } from "./helpers/tree";
-import { convertErrorToString } from "./helpers/utils";
 import { ProjectConfig } from "./repo";
 import TestParser, { createMatcher } from "./TestParser";
 import {
@@ -16,6 +15,7 @@ import {
   ProjectTestsChangedEvent,
   ProjectTestState,
 } from "./types";
+import { convertErrorToString } from "./utils";
 
 const getFileType = (filePath: string, matcher: Matcher): FileType => {
   if (matcher(filePath)) {

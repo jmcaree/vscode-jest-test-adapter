@@ -5,8 +5,8 @@ import * as mm from "micromatch";
 import * as path from "path";
 import * as vscode from "vscode";
 import { Log } from "vscode-test-adapter-util";
-import { convertErrorToString } from "./helpers/utils";
 import { cancellationTokenNone, Matcher, TestFileParseResult } from "./types";
+import { convertErrorToString } from './utils';
 
 /**
  * Glob patterns to globally ignore when searching for tests.

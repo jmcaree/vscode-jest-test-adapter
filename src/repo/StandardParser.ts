@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import util from "util";
 import { Log } from "vscode-test-adapter-util";
-import { convertErrorToString, getJestConfigInDirectory } from "../helpers/utils";
+import { convertErrorToString, getJestConfigInDirectory } from "../utils";
 import RepoParserBase from "./RepoParserBase";
 import { RepoParser } from "./types";
 
