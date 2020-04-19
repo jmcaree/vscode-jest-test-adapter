@@ -115,6 +115,13 @@
             "integratedTerminal",
             "externalTerminal"
           ]
+        },
+        "jestTestExplorer.hideEmptyProjects": {
+          "description": "Hide projects that do not have any tests from the test hierarchy.",
+          "scope": "resource",
+          "title": "Hide Empty Projects",
+          "type": "boolean",
+          "default": true
         }
       }
     }

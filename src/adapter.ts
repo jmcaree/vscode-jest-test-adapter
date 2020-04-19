@@ -225,7 +225,9 @@ export default class JestTestAdapter implements TestAdapter {
           break;
         case "projectTestsUpdated":
         case "projectAppUpdated":
-          this.retireTestFiles([suite.id]); // more than necessary but works
+          if (suite) {
+            this.retireTestFiles([suite.id]); // more than necessary but works
+          }
           break;
         case "projectRemoved":
           // Assume that if we are removing a project, then we don't need to invalidate anything.
