@@ -2,14 +2,33 @@ import _ from "lodash";
 import { TestInfo, TestSuiteInfo } from "vscode-test-adapter-api";
 import { DescribeNode, FileNode, FolderNode, ProjectRootNode, TestNode, WorkspaceRootNode } from "./tree";
 
-const mapWorkspaceRootToSuite = ({ label, id, projects }: WorkspaceRootNode): TestSuiteInfo => ({
-  children: projects.map(mapProjectRootNodeToSuite),
-  id,
-  label,
-  type: "suite",
-});
+const mapWorkspaceRootToSuite = (rootNode: WorkspaceRootNode): TestSuiteInfo | undefined => {
+  const folderHasFiles = (folder: FolderNode): boolean =>
+    folder.files.length > 0 || _.some(folder.folders, f => folderHasFiles(f));
 
-const mapProjectRootNodeToSuite = ({label, id, files, folders}: ProjectRootNode): TestSuiteInfo => ({
+  const projects = rootNode.projects.filter(p => p.files.length > 0 || _.some(p.folders, f => folderHasFiles(f)));
+
+  if (projects.length === 0) {
+    return undefined;
+  }
+  /*
+  TODO consider whether this is what we want to do when there is only one project present.
+  if (projects.length === 1) {
+    return mapProjectRootNodeToSuite(projects[0]);
+  }
+  */
+
+  const { label, id } = rootNode;
+
+  return {
+    children: projects.map(mapProjectRootNodeToSuite),
+    id,
+    label,
+    type: "suite",
+  };
+};
+
+const mapProjectRootNodeToSuite = ({ label, id, files, folders }: ProjectRootNode): TestSuiteInfo => ({
   children: folders.map(mapFolderNodeToTestSuite).concat(files.map(mapFileNodeToTestSuite)),
   id,
   label,
