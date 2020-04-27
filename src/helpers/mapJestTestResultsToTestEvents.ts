@@ -3,7 +3,16 @@ import { TestEvent } from "vscode-test-adapter-api";
 import { IJestResponse } from "../types";
 import { lowerCaseDriveLetter, mapAssertionResultToTestId } from "./mapAssertionResultToTestId";
 import { mapJestAssertionToTestDecorations } from "./mapJestAssertionToTestDecorations";
-import { DescribeNode, FileNode, FolderNode, Node, ProjectRootNode, TestNode, WorkspaceRootNode } from "./tree";
+import {
+  DescribeNode,
+  FileNode,
+  FileWithParseErrorNode,
+  FolderNode,
+  Node,
+  ProjectRootNode,
+  TestNode,
+  WorkspaceRootNode,
+} from "./tree";
 
 export function mapJestTestResultsToTestEvents(jestResponse: IJestResponse, tree: ProjectRootNode): TestEvent[] {
   return _.flatMap(jestResponse.results.testResults, fileResult => {
@@ -24,7 +33,10 @@ export function mapJestTestResultsToTestEvents(jestResponse: IJestResponse, tree
     }
 
     const lowerCaseFileName = lowerCaseDriveLetter(fileResult.name);
-    const matchingFileNode = searchWorkspaceRoot(tree, n => n.type === "file" && n.id.endsWith(lowerCaseFileName));
+    const matchingFileNode = searchWorkspaceRoot(
+      tree,
+      n => (n.type === "file" || n.type === "fileWithParseError") && n.id.endsWith(lowerCaseFileName),
+    );
     if (!matchingFileNode || matchingFileNode.type !== "file") {
       return [];
     }
@@ -90,21 +102,28 @@ const searchProjectRootOrFolder = (
 };
 
 const searchFileOrDescribeNode = (
-  file: FileNode | DescribeNode,
+  file: FileNode | FileWithParseErrorNode | DescribeNode,
   matchFunction: (node: Node) => boolean,
 ): Node | null => {
   if (matchFunction(file)) {
     return file;
   }
 
-  return (
-    _.chain(file.describeBlocks)
-      .map(f => searchFileOrDescribeNode(f, matchFunction))
-      .concat(file.tests.map(f => searchTest(f, matchFunction)))
-      .filter(f => f !== null)
-      .first()
-      .value() ?? null
-  );
+  switch (file.type) {
+    case "describe":
+    case "file":
+      return (
+        _.chain(file.describeBlocks)
+          .map(f => searchFileOrDescribeNode(f, matchFunction))
+          .concat(file.tests.map(f => searchTest(f, matchFunction)))
+          .filter(f => f !== null)
+          .first()
+          .value() ?? null
+      );
+
+    case "fileWithParseError":
+      return null;
+  }
 };
 
 const searchTest = (test: TestNode, matchFunction: (node: Node) => boolean): Node | null => {

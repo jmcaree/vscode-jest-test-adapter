@@ -1,17 +1,12 @@
 import fs from "fs";
-import {
-  IParseResults,
-  JestSettings,
-  parse as editorSupportParse,
-  ParsedNode,
-  ParsedNodeTypes,
-} from "jest-editor-support";
+import { JestSettings, parse as editorSupportParse } from "jest-editor-support";
 import _ from "lodash";
 import * as mm from "micromatch";
 import * as path from "path";
 import * as vscode from "vscode";
 import { Log } from "vscode-test-adapter-util";
-import { cancellationTokenNone, Matcher } from "./types";
+import { convertErrorToString } from "./helpers/utils";
+import { cancellationTokenNone, Matcher, TestFileParseResult } from "./types";
 
 /**
  * Glob patterns to globally ignore when searching for tests.
@@ -26,7 +21,9 @@ class TestParser {
     private readonly settings: JestSettings,
   ) {}
 
-  public async parseAll(cancellationToken: vscode.CancellationToken = cancellationTokenNone): Promise<IParseResults[]> {
+  public async parseAll(
+    cancellationToken: vscode.CancellationToken = cancellationTokenNone,
+  ): Promise<TestFileParseResult[]> {
     const matcher = createMatcher(this.settings);
 
     this.log.info("Loading Jest tests");
@@ -43,11 +40,11 @@ class TestParser {
   public parseFiles(
     files: string[],
     cancellationToken: vscode.CancellationToken = cancellationTokenNone,
-  ): IParseResults[] {
+  ): TestFileParseResult[] {
     // TODO this method should potentially be async...
     const matcher = createMatcher(this.settings);
 
-    return files.filter(matcher).map((f) => {
+    return files.filter(matcher).map(f => {
       if (cancellationToken.isCancellationRequested) {
         throw Error("Cancellation requested.");
       }
@@ -67,7 +64,7 @@ class TestParser {
     filePath: string,
     matcher: Matcher,
     cancellationToken: vscode.CancellationToken = cancellationTokenNone,
-  ): Promise<IParseResults[]> {
+  ): Promise<TestFileParseResult[]> {
     const isDirectory = await this.checkIsDirectory(filePath, cancellationToken);
     if (isDirectory) {
       return await this.exploreDirectory(filePath, matcher, cancellationToken);
@@ -114,9 +111,9 @@ class TestParser {
     directory: string,
     matcher: Matcher,
     cancellationToken: vscode.CancellationToken = cancellationTokenNone,
-  ): Promise<IParseResults[]> {
+  ): Promise<TestFileParseResult[]> {
     const contents = await this.getDirectoryContents(directory, cancellationToken);
-    const files = await Promise.all(contents.map((x) => this.evaluateFilePath(x, matcher, cancellationToken)));
+    const files = await Promise.all(contents.map(x => this.evaluateFilePath(x, matcher, cancellationToken)));
     return _.flatten(files);
   }
 
@@ -126,17 +123,16 @@ class TestParser {
    * user.
    * @param file the path of the file to parse.
    */
-  private parse(file: string): IParseResults {
+  private parse(file: string): TestFileParseResult {
     try {
-      return editorSupportParse(file);
+      return { ...editorSupportParse(file), outcome: "success" };
     } catch (error) {
-      this.log.error(error);
+      const errorAsString = convertErrorToString(error);
+      this.log.error(errorAsString);
       return {
-        describeBlocks: [],
-        expects: [],
+        error: errorAsString,
         file,
-        itBlocks: [],
-        root: new ParsedNode(ParsedNodeTypes.root, file),
+        outcome: "failure",
       };
     }
   }
@@ -161,7 +157,7 @@ class TestParser {
           reject(err);
         } else {
           const includedFiles = mm.not(files, IGNORE_GLOBS);
-          resolve(includedFiles.map((f) => path.join(directory, f)));
+          resolve(includedFiles.map(f => path.join(directory, f)));
         }
       });
     });
@@ -180,9 +176,9 @@ const createMatcher = (settings: JestSettings): Matcher => {
 
   if (settings?.configs?.length > 0 && settings.configs[0].testRegex?.length > 0) {
     const regex = new RegExp(settings.configs[0].testRegex[0]);
-    return (value) => regex.test(value);
+    return value => regex.test(value);
   } else {
-    return (value) => mm.any(value, settings.configs[0].testMatch);
+    return value => mm.any(value, settings.configs[0].testMatch);
   }
 };
 
