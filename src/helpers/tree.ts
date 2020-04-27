@@ -3,10 +3,17 @@ interface NodeBase {
   label: string;
 }
 
-export type Node = WorkspaceRootNode | ProjectRootNode | FolderNode | FileNode | DescribeNode | TestNode;
+export type Node =
+  | WorkspaceRootNode
+  | ProjectRootNode
+  | FolderNode
+  | FileNode
+  | FileWithParseErrorNode
+  | DescribeNode
+  | TestNode;
 
 export interface WorkspaceRootNode extends NodeBase {
-  id: "root",
+  id: "root";
   type: "workspaceRootNode";
   projects: ProjectRootNode[];
 }
@@ -14,7 +21,7 @@ export interface WorkspaceRootNode extends NodeBase {
 export interface ProjectRootNode extends NodeBase {
   type: "projectRootNode";
   folders: FolderNode[];
-  files: FileNode[];
+  files: Array<FileNode | FileWithParseErrorNode>;
   rootPath: string;
   configPath: string;
 }
@@ -22,7 +29,7 @@ export interface ProjectRootNode extends NodeBase {
 export interface FolderNode extends NodeBase {
   type: "folder";
   folders: FolderNode[];
-  files: FileNode[];
+  files: Array<FileNode | FileWithParseErrorNode>;
 }
 
 export interface FileNode extends NodeBase {
@@ -31,6 +38,12 @@ export interface FileNode extends NodeBase {
   tests: TestNode[];
   file: string;
   line: number;
+}
+
+export interface FileWithParseErrorNode extends NodeBase {
+  type: "fileWithParseError";
+  file: string;
+  error: string;
 }
 
 export interface DescribeNode extends NodeBase {
@@ -66,9 +79,9 @@ export const createWorkspaceRootNode = (): WorkspaceRootNode => {
     id: "root",
     label: "workspaceRootNode",
     projects: [],
-    type: "workspaceRootNode"
-  }
-}
+    type: "workspaceRootNode",
+  };
+};
 
 export const createProjectNode = (id: string, label: string, rootPath: string, configPath: string): ProjectRootNode => {
   return {
@@ -79,8 +92,8 @@ export const createProjectNode = (id: string, label: string, rootPath: string, c
     label,
     rootPath,
     type: "projectRootNode",
-  }
-}
+  };
+};
 
 export const createFolderNode = (id: string, label: string): FolderNode => ({
   files: [],
@@ -98,6 +111,19 @@ export const createFileNode = (id: string, label: string, file: string): FileNod
   label,
   tests: [],
   type: "file",
+});
+
+export const createFileWithParseErrorNode = (
+  id: string,
+  label: string,
+  file: string,
+  error: string,
+): FileWithParseErrorNode => ({
+  error,
+  file,
+  id,
+  label,
+  type: "fileWithParseError",
 });
 
 export const createDescribeNode = (id: string, label: string, file: string, line: number): DescribeNode => ({

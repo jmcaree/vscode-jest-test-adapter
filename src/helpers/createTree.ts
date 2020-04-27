@@ -1,8 +1,19 @@
-import { DescribeBlock, IParseResults, ItBlock, Location, ParsedNodeTypes } from "jest-editor-support";
+import { DescribeBlock, ItBlock, Location, ParsedNodeTypes } from "jest-editor-support";
 import _ from "lodash";
 import { parse, sep as pathSeparator } from "path";
 import { DESCRIBE_ID_SEPARATOR, PROJECT_ID_SEPARATOR, TEST_ID_SEPARATOR } from "../constants";
-import { createFileNode, createFolderNode, DescribeNode, FolderNode, ProjectRootNode, TestNode } from "./tree";
+import { TestFileParseResult } from "../types";
+import {
+  createFileNode,
+  createFileWithParseErrorNode,
+  createFolderNode,
+  DescribeNode,
+  FileNode,
+  FileWithParseErrorNode,
+  FolderNode,
+  ProjectRootNode,
+  TestNode,
+} from "./tree";
 
 /**
  * A type that contains the same data as the DescribeBlock but allows for nesting child describe nodes and tests.  Only
@@ -12,14 +23,19 @@ type Describe = Omit<DescribeBlock, "filter" | "addChild"> & { describeBlocks: D
 
 /**
  * Merges a tree with updated Jest Test Adapter parse results.
+ *
+ * TODO this function should be converted to be immutable.
+ *
  * @param tree The existing project parse tree to merge the new results with.
  * @param parseResults The parse results from the Jest Test Adapter.
  * @param projectRoot The root path of the current project.
  */
-const mergeTree = (tree: ProjectRootNode, parseResults: IParseResults[], projectRoot: string): ProjectRootNode => {
+const mergeTree = (
+  tree: ProjectRootNode,
+  parseResults: TestFileParseResult[],
+  projectRoot: string,
+): ProjectRootNode => {
   parseResults.forEach(parseResult => {
-    const { file, describeBlocks, itBlocks } = parseResult;
-
     // process all the folder nodes...
     let currentFolderNode: ProjectRootNode | FolderNode = tree;
 
@@ -43,24 +59,54 @@ const mergeTree = (tree: ProjectRootNode, parseResults: IParseResults[], project
       }
     });
 
-    // process file node...
-    const expectedFileNodeId = `${tree.id}${PROJECT_ID_SEPARATOR}${file}`
+    const { file } = parseResult;
+
+    const expectedFileNodeId = `${tree.id}${PROJECT_ID_SEPARATOR}${file}`;
     let fileNode = currentFolderNode.files.find(f => f.id === expectedFileNodeId);
-    if (!fileNode) {
-      fileNode = createFileNode(expectedFileNodeId, fileName, file);
-      currentFolderNode.files = currentFolderNode.files.concat(fileNode);
+
+    switch (parseResult.outcome) {
+      case "success":
+        if (fileNode && fileNode.type === "fileWithParseError") {
+          // so we had success in parsing the file this time but in a previous run, there was a parse error.  So we
+          // replace the previous file node.
+          fileNode = createFileNode(expectedFileNodeId, fileName, file);
+          currentFolderNode.files = currentFolderNode.files.map(f =>
+            f.id === expectedFileNodeId ? (fileNode as FileNode) : f,
+          );
+        } else if (!fileNode) {
+          // there was no file node, so add one.
+          fileNode = createFileNode(expectedFileNodeId, fileName, file);
+          currentFolderNode.files = currentFolderNode.files.concat(fileNode);
+        }
+
+        const { describeBlocks, itBlocks } = parseResult;
+
+        const { describeBlocks: nestedDescribeBlocks, tests: standaloneTests } = convertDescribeBlocksAndTests(
+          itBlocks,
+          describeBlocks,
+          file,
+          fileNode.id,
+        );
+
+        fileNode.describeBlocks = nestedDescribeBlocks;
+        fileNode.tests = standaloneTests;
+        break;
+
+      case "failure":
+        if (fileNode && fileNode.type === "file") {
+          // so we failed in parsing the file this time but in a previous run, we were successful.  So we
+          // replace the previous file node.
+          fileNode = createFileWithParseErrorNode(expectedFileNodeId, fileName, file, parseResult.error);
+          currentFolderNode.files = currentFolderNode.files.map(f =>
+            f.id === expectedFileNodeId ? (fileNode as FileWithParseErrorNode) : f,
+          );
+        } else if (!fileNode) {
+          // there was no file node, so add one.
+          fileNode = createFileWithParseErrorNode(expectedFileNodeId, fileName, file, parseResult.error);
+          currentFolderNode.files = currentFolderNode.files.concat(fileNode);
+        }
+        break;
     }
-
-    const { describeBlocks: nestedDescribeBlocks, tests: standaloneTests } = convertDescribeBlocksAndTests(
-      itBlocks,
-      describeBlocks,
-      file,
-      fileNode.id
-    );
-
-    // TODO make immutable.
-    fileNode.describeBlocks = nestedDescribeBlocks;
-    fileNode.tests = standaloneTests;
   });
 
   return tree;
@@ -68,7 +114,7 @@ const mergeTree = (tree: ProjectRootNode, parseResults: IParseResults[], project
 
 const parseFolderAndFileNames = (
   projectRootNode: ProjectRootNode,
-  result: IParseResults,
+  result: TestFileParseResult,
 ): { folders: string[]; fileName: string; rootPath: string } => {
   const { dir: directory, base: fileName } = parse(result.file);
 
@@ -84,7 +130,12 @@ const parseFolderAndFileNames = (
   return { folders, fileName, rootPath: projectRootNode.rootPath };
 };
 
-const convertDescribeBlocksAndTests = (itBlocks: ItBlock[], describeBlocks: DescribeBlock[], file: string, parentId: string) => {
+const convertDescribeBlocksAndTests = (
+  itBlocks: ItBlock[],
+  describeBlocks: DescribeBlock[],
+  file: string,
+  parentId: string,
+) => {
   const { describeBlocks: nestedDescribeBlocks, tests: standaloneTests } = mergeDescribeBlocksAndTests(
     itBlocks,
     describeBlocks,

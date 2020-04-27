@@ -1,4 +1,12 @@
-import { DescribeNode, FileNode, FolderNode, ProjectRootNode, TestNode, WorkspaceRootNode } from "./tree";
+import {
+  DescribeNode,
+  FileNode,
+  FileWithParseErrorNode,
+  FolderNode,
+  ProjectRootNode,
+  TestNode,
+  WorkspaceRootNode,
+} from "./tree";
 
 function filterTree(tree: WorkspaceRootNode, testNames: string[]): WorkspaceRootNode;
 function filterTree(tree: ProjectRootNode, testNames: string[]): ProjectRootNode;
@@ -50,19 +58,36 @@ const filterFolders = (folders: FolderNode[], testNames: string[]): FolderNode[]
     });
 };
 
-const filterFiles = (files: FileNode[], testNames: string[]): FileNode[] => {
+const filterFiles = (
+  files: Array<FileNode | FileWithParseErrorNode>,
+  testNames: string[],
+): Array<FileNode | FileWithParseErrorNode> => {
   return files
     .filter(f => testNames.some(t => t.startsWith(f.id)))
-    .map(f => {
+    .reduce((acc, f) => {
       if (testNames.some(t => t === f.id)) {
-        return f;
+        acc.push(f);
       }
-      return {
-        ...f,
-        describeBlocks: filterDescribeBlocks(f.describeBlocks, testNames),
-        tests: filterTests(f.tests, testNames),
-      };
-    });
+
+      switch (f.type) {
+        case "file":
+          acc.push({
+            ...f,
+            describeBlocks: filterDescribeBlocks(f.describeBlocks, testNames),
+            tests: filterTests(f.tests, testNames),
+          });
+          break;
+
+        case "fileWithParseError":
+          // In this edge case where we are asked to filter files that start with this file name but is not an exact match
+          // This means we want to filter by describe or test blocks within this file, but we didn't parse it successfully
+          // we'll include this file in the results.
+          acc.push(f);
+          break;
+      }
+
+      return acc;
+    }, [] as Array<FileNode | FileWithParseErrorNode>);
 };
 
 const filterDescribeBlocks = (describeBlocks: DescribeNode[], testNames: string[]): DescribeNode[] => {

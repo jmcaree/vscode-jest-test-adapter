@@ -1,6 +1,6 @@
-import { JestTotalResults, TestReconciler } from "jest-editor-support";
+import { IParseResults, JestTotalResults, TestReconciler } from "jest-editor-support";
 import * as vscode from "vscode";
-import { WorkspaceRootNode, ProjectRootNode } from "./helpers/tree";
+import { ProjectRootNode, WorkspaceRootNode } from "./helpers/tree";
 
 export interface IJestResponse {
   results: JestTotalResults;
@@ -58,7 +58,7 @@ export type ProjectsChangedEvent =
   | {
       type: "projectTestsUpdated";
       suite: WorkspaceRootNode;
-      testEvent: ProjectTestsChangedEvent
+      testEvent: ProjectTestsChangedEvent;
     };
 
 export interface IDisposable {
@@ -66,3 +66,11 @@ export interface IDisposable {
 }
 
 export const cancellationTokenNone: vscode.CancellationToken = new vscode.CancellationTokenSource().token;
+
+export type TestFileParseResult = (IParseResults & { outcome: "success" }) | TestFileParseFailure;
+
+export interface TestFileParseFailure {
+  outcome: "failure";
+  file: string;
+  error: string;
+}

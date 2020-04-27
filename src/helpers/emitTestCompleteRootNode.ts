@@ -1,5 +1,13 @@
 import { TestEvent, TestRunFinishedEvent, TestRunStartedEvent, TestSuiteEvent } from "vscode-test-adapter-api";
-import { DescribeNode, FileNode, FolderNode, ProjectRootNode, TestNode, WorkspaceRootNode } from "./tree";
+import {
+  DescribeNode,
+  FileNode,
+  FileWithParseErrorNode,
+  FolderNode,
+  ProjectRootNode,
+  TestNode,
+  WorkspaceRootNode,
+} from "./tree";
 
 const emitTestCompleteRootNode = (
   root: WorkspaceRootNode | ProjectRootNode,
@@ -55,22 +63,31 @@ const emitTestCompleteFolder = (
     suite: folder.id,
     type: "suite",
   });
+
   folder.folders.forEach(f => emitTestCompleteFolder(f, testEvents, eventEmitter));
   folder.files.forEach(f => emitTestCompleteFile(f, testEvents, eventEmitter));
 };
 
 const emitTestCompleteFile = (
-  file: FileNode,
+  file: FileNode | FileWithParseErrorNode,
   testEvents: TestEvent[],
   eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
 ) => {
-  eventEmitter({
-    state: "completed",
-    suite: file.id,
-    type: "suite",
-  });
-  file.describeBlocks.forEach(d => emitTestCompleteDescribe(d, testEvents, eventEmitter));
-  file.tests.forEach(t => emitTestCompleteTest(t, testEvents, eventEmitter));
+  switch (file.type) {
+    case "file":
+      eventEmitter({
+        state: "completed",
+        suite: file.id,
+        type: "suite",
+      });
+      file.describeBlocks.forEach(d => emitTestCompleteDescribe(d, testEvents, eventEmitter));
+      file.tests.forEach(t => emitTestCompleteTest(t, testEvents, eventEmitter));
+      break;
+
+    case "fileWithParseError":
+      // TODO support is needed in Host to support suites that have errors.
+      break;
+  }
 };
 
 const emitTestCompleteDescribe = (
@@ -154,7 +171,7 @@ const emitTestRunningFolder = (
 };
 
 const emitTestRunningFile = (
-  file: FileNode,
+  file: FileNode | FileWithParseErrorNode,
   eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
 ) => {
   eventEmitter({
@@ -162,8 +179,18 @@ const emitTestRunningFile = (
     suite: file.id,
     type: "suite",
   });
-  file.describeBlocks.forEach(d => emitTestRunningDescribe(d, eventEmitter));
-  file.tests.forEach(t => emitTestRunningTest(t, eventEmitter));
+
+  switch (file.type) {
+    case "file":
+      file.describeBlocks.forEach(d => emitTestRunningDescribe(d, eventEmitter));
+      file.tests.forEach(t => emitTestRunningTest(t, eventEmitter));
+      break;
+
+    case "fileWithParseError":
+      // Currently we do not emit anything to indicate that we are running the files with parse errors.  This may not
+      // be the correct choice...
+      break;
+  }
 };
 
 const emitTestRunningDescribe = (
