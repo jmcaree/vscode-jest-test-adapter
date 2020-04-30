@@ -178,7 +178,7 @@ const createMatcher = (settings: JestSettings): Matcher => {
     const regex = new RegExp(settings.configs[0].testRegex[0]);
     return value => regex.test(value);
   } else {
-    return value => mm.any(value, settings.configs[0].testMatch);
+    return value => mm.any(value, settings.configs[0].testMatch, { nocase: process.platform === "win32" });
   }
 };
 
