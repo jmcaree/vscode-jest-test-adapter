@@ -1,10 +1,10 @@
-import { getSettings } from "jest-editor-support";
 import _ from "lodash";
 import vscode from "vscode";
 import { Log } from "vscode-test-adapter-util";
 import { initProjectWorkspace } from "./helpers/initProjectWorkspace";
 import { createWorkspaceRootNode, WorkspaceRootNode } from "./helpers/tree";
 import { JestTestAdapterOptions } from "./JestManager";
+import { getSettings } from "./JestSettings";
 import { getRepoParser, RepoParser } from "./repo";
 import { ProjectChangeEvent, ProjectConfig } from "./repo/types";
 import TestLoader from "./TestLoader";
