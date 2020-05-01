@@ -1,6 +1,7 @@
 import { JestTotalResults, Options, Runner, TestReconciler } from "jest-editor-support";
 import { ProjectWorkspace } from "jest-editor-support";
 import { WorkspaceFolder } from "vscode";
+import { createRunner } from './JestSettings';
 import { IJestResponse, ITestFilter } from "./types";
 
 export enum DebugOutput {
@@ -63,7 +64,7 @@ export default class JestManager {
         testFilter && testFilter.testNamePattern ? `"${testFilter.testNamePattern.replace(/"/g, '\\"')}"` : undefined,
     };
 
-    const runner = new Runner(projectWorkspace, options);
+    const runner = createRunner(projectWorkspace, options);
     this.activeRunners.add(runner);
     return (
       runner
