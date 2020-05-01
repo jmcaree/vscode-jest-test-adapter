@@ -175,10 +175,10 @@ const createMatcher = (settings: JestSettings): Matcher => {
   // TODO what to do if there is more than one config?...
 
   if (settings?.configs?.length > 0 && settings.configs[0].testRegex?.length > 0) {
-    const regex = new RegExp(settings.configs[0].testRegex[0]);
+    const regex = new RegExp(settings.configs[0].testRegex[0], process.platform === "win32" ? "i" : undefined);
     return value => regex.test(value);
   } else {
-    return value => mm.any(value, settings.configs[0].testMatch);
+    return value => mm.any(value, settings.configs[0].testMatch, { nocase: process.platform === "win32" });
   }
 };
 
