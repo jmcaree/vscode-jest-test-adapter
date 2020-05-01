@@ -4,22 +4,38 @@ import { createMatcher } from "../TestParser";
 // we need to check whether we are running on Windows for file matching.
 const isWindows = process.platform === "win32";
 
-const testMatchData:Array<[string, string, boolean]> = [
-  // check that upper and lowercase drive letters match correctly for each platform.
-  ["c:\\testfile.test.js", "c:/**/*.test.js", isWindows],
-  ["C:\\testfile.test.js", "c:/**/*.test.js", true],
-  ["c:\\testfile.test.js", "C:/**/*.test.js", true],
-  ["C:\\testfile.test.js", "C:/**/*.test.js", isWindows],
-];
+const getTestMatchData = (): Array<[string, string, boolean]> => {
+  if (isWindows) {
+    return [
+      // check that upper and lowercase drive letters match correctly for each platform.
+      ["c:\\testfile.test.js", "c:/**/*.test.js", true],
+      ["C:\\testfile.test.js", "c:/**/*.test.js", isWindows],
+      ["c:\\testfile.test.js", "C:/**/*.test.js", isWindows],
+      ["C:\\testfile.test.js", "C:/**/*.test.js", true],
+    ];
+  }
+  return [
+    ["/folder/app.test.js", "**/*.test.js", true]
+  ];
+};
 
-const testRegexData:Array<[string, string, boolean]> = [
-  // check that upper and lowercase drive letters match correctly for each platform.
-  ["c:\\testfile.test.js", ".*\\.test\\.[tj]sx?", true],
-  ["C:\\testfile.test.js", ".*\\.test\\.[tj]sx?", true],
-];
+const getTestRegexData = (): Array<[string, string, boolean]> => {
+  if (isWindows) {
+    return [
+      // check that upper and lowercase drive letters match correctly for each platform.
+      ["c:\\testfile.test.js", "c:\\\\.*\\.test\\.[tj]sx?", true],
+      ["C:\\testfile.test.js", "c:\\\\.*\\.test\\.[tj]sx?", isWindows],
+      ["c:\\testfile.test.js", "C:\\\\.*\\.test\\.[tj]sx?", isWindows],
+      ["C:\\testfile.test.js", "C:\\\\.*\\.test\\.[tj]sx?", true],
+    ];
+  }
+  return [
+    ["/folder/app.test.js", ".*/.*\\.test\\.[tj]sx?", true]
+  ];
+};
 
 describe("Matcher tests", () => {
-  test.each(testMatchData)(
+  test.each(getTestMatchData())(
     "Given a file glob pattern and filepath when invoked then the Matcher function correctly matches the filepath",
     (filePath, glob, expectedToMatch) => {
       const matcher = createMatcher(createConfig({ testMatch: [glob] }));
@@ -27,7 +43,7 @@ describe("Matcher tests", () => {
     },
   );
 
-  test.each(testRegexData)(
+  test.each(getTestRegexData())(
     "Given a regex pattern and filepath when invoked then the Matcher function correctly matches the filepath",
     (filePath, regex, expectedToMatch) => {
       const matcher = createMatcher(createConfig({ testRegex: [regex] }));
