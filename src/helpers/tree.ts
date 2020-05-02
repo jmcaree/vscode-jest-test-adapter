@@ -1,3 +1,5 @@
+import { ProjectConfig } from '../repo';
+
 interface NodeBase {
   id: string;
   label: string;
@@ -22,8 +24,7 @@ export interface ProjectRootNode extends NodeBase {
   type: "projectRootNode";
   folders: FolderNode[];
   files: Array<FileNode | FileWithParseErrorNode>;
-  rootPath: string;
-  configPath: string;
+  config: ProjectConfig;
 }
 
 export interface FolderNode extends NodeBase {
@@ -83,14 +84,13 @@ export const createWorkspaceRootNode = (): WorkspaceRootNode => {
   };
 };
 
-export const createProjectNode = (id: string, label: string, rootPath: string, configPath: string): ProjectRootNode => {
+export const createProjectNode = (id: string, label: string, config: ProjectConfig): ProjectRootNode => {
   return {
-    configPath,
+    config,
     files: [],
     folders: [],
     id,
     label,
-    rootPath,
     type: "projectRootNode",
   };
 };
@@ -106,9 +106,9 @@ export const createFolderNode = (id: string, label: string): FolderNode => ({
 export const createFileNode = (id: string, label: string, file: string): FileNode => ({
   describeBlocks: [],
   file,
-  line: 1, // TODO confirm that we are one indexed.
   id,
   label,
+  line: 1, // TODO confirm that we are one indexed.
   tests: [],
   type: "file",
 });
@@ -129,17 +129,17 @@ export const createFileWithParseErrorNode = (
 export const createDescribeNode = (id: string, label: string, file: string, line: number): DescribeNode => ({
   describeBlocks: [],
   file,
-  line,
   id,
   label,
+  line,
   tests: [],
   type: "describe",
 });
 
 export const createTestNode = (id: string, label: string, file: string, line: number): TestNode => ({
   file,
-  line,
   id,
   label,
+  line,
   type: "test",
 });

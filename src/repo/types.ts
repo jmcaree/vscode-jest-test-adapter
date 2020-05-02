@@ -6,6 +6,8 @@ export interface ProjectConfig {
   setupFile?: string;
   projectName: string;
 
+  pathToJest: string;
+
   // TODO we should retrieve this from the jestConfig.
   rootPath: string;
 }

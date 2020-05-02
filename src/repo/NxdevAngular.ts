@@ -24,7 +24,7 @@ interface NxAngular {
 class NxdevAngular extends RepoParserBase implements RepoParser {
   public type = "Nx.dev Angular";
 
-  constructor(private workspaceRoot: string) {
+  constructor(private workspaceRoot: string, private pathToJest: string) {
     super();
   }
 
@@ -47,6 +47,7 @@ class NxdevAngular extends RepoParserBase implements RepoParser {
 
         return {
           jestConfig: path.resolve(this.workspaceRoot, options.jestConfig),
+          pathToJest: this.pathToJest,
           projectName,
           // TODO this is assuming that the project root is where the jest config is.
           rootPath: path.resolve(this.workspaceRoot, path.dirname(options.jestConfig)),

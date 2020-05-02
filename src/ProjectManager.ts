@@ -1,20 +1,13 @@
 import _ from "lodash";
 import vscode from "vscode";
 import { Log } from "vscode-test-adapter-util";
-import { initProjectWorkspace } from "./helpers/initProjectWorkspace";
 import { createWorkspaceRootNode, WorkspaceRootNode } from "./helpers/tree";
 import { JestTestAdapterOptions } from "./JestManager";
 import { getSettings } from "./JestSettings";
 import { getRepoParser, RepoParser } from "./repo";
 import { ProjectChangeEvent, ProjectConfig } from "./repo/types";
 import TestLoader from "./TestLoader";
-import {
-  EnvironmentChangedEvent,
-  IDisposable,
-  ProjectsChangedEvent,
-  ProjectTestState,
-  WorkspaceTestState,
-} from "./types";
+import { EnvironmentChangedEvent, IDisposable, ProjectsChangedEvent, WorkspaceTestState } from "./types";
 
 class ProjectManager {
   private repoParser: RepoParser | null = null;
@@ -36,8 +29,10 @@ class ProjectManager {
   }
 
   public async getTestState(): Promise<WorkspaceTestState> {
+    const jestPath = this.options.pathToJest(this.workspace);
+
     if (!this.repoParser) {
-      this.repoParser = await getRepoParser(this.workspace.uri.fsPath, this.log);
+      this.repoParser = await getRepoParser(this.workspace.uri.fsPath, this.log, jestPath);
       if (this.repoParser) {
         this.disposables.push(this.repoParser.projectChange(this.handleProjectChange));
       } else {
@@ -47,26 +42,10 @@ class ProjectManager {
       }
     }
 
-    const jestPath = this.options.pathToJest(this.workspace);
-
     // TODO do we need to force load this?
     const projects = await this.repoParser.getProjects();
     const promises = projects.map(async p => {
-      const projectWorkspace = initProjectWorkspace(p.jestConfig!, jestPath, p.rootPath);
-
-      this.log.info(`Loading Jest settings from ${projectWorkspace.pathToConfig}...`);
-      const settings = await getSettings(projectWorkspace);
-
-      if (settings.configs.length > 1) {
-        this.log.info(`More than one Jest config found.`, settings);
-      } else if (settings.configs[0]?.testRegex?.length > 1) {
-        this.log.info(`More than one Jest test regex found.`, settings);
-      }
-
-      const testLoader = new TestLoader(settings, this.log, p);
-      this.testLoaders.push(testLoader);
-      this.disposables.push(testLoader.environmentChange(e => this.handleTestChange(e), this));
-
+      const testLoader = await this.addNewTestLoader(p, jestPath);
       return testLoader.getTestState(true);
     });
 
@@ -132,7 +111,8 @@ class ProjectManager {
 
     switch (event.type) {
       case "added":
-        const newProject = await this.convertConfig(event.config, jestPath);
+        const loader = await this.addNewTestLoader(event.config, jestPath);
+        const newProject = await loader.getTestState();
 
         this.workspaceTestState = {
           ...this.workspaceTestState,
@@ -151,7 +131,7 @@ class ProjectManager {
       case "removed":
         this.workspaceTestState = {
           ...this.workspaceTestState,
-          projects: this.workspaceTestState.projects.filter(x => x.rootPath === event.rootPath),
+          projects: this.workspaceTestState.projects.filter(x => x.config.rootPath === event.rootPath),
         };
 
         this.projectsChangedEmitter.fire({
@@ -162,16 +142,21 @@ class ProjectManager {
     }
   }
 
-  private async convertConfig(projectConfig: ProjectConfig, jestPath: string): Promise<ProjectTestState> {
-    const projectWorkspace = initProjectWorkspace(projectConfig.jestConfig!, jestPath, projectConfig.rootPath);
+  private async addNewTestLoader(projectConfig: ProjectConfig, jestPath: string): Promise<TestLoader> {
+    this.log.info(`Loading Jest settings from ${projectConfig.jestConfig}...`);
+    const settings = await getSettings(projectConfig);
 
-    this.log.info(`Loading Jest settings from ${projectWorkspace.pathToConfig}...`);
-    const settings = await getSettings(projectWorkspace);
+    if (settings.configs.length > 1) {
+      this.log.info(`More than one Jest config found.`, settings);
+    } else if (settings.configs[0]?.testRegex?.length > 1) {
+      this.log.info(`More than one Jest test regex found.`, settings);
+    }
 
     const testLoader = new TestLoader(settings, this.log, projectConfig);
     this.testLoaders.push(testLoader);
+    this.disposables.push(testLoader.environmentChange(e => this.handleTestChange(e), this));
 
-    return testLoader.getTestState();
+    return testLoader;
   }
 }
 

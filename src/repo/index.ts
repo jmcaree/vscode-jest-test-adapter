@@ -7,11 +7,11 @@ import { ProjectConfig, RepoParser } from "./types";
 /**
  * Returns a RepoParser if one matches the given workspaceRoot otherwise returns null.
  */
-const getRepoParser = async (workspaceRoot: string, log: Log): Promise<RepoParser | null> => {
+const getRepoParser = async (workspaceRoot: string, log: Log, pathToJest: string): Promise<RepoParser | null> => {
   const repoParsers: RepoParser[] = [
-    new NxdevAngular(workspaceRoot),
-    new NxdevReact(workspaceRoot),
-    new StandardParser(workspaceRoot, log),
+    new NxdevAngular(workspaceRoot, pathToJest),
+    new NxdevReact(workspaceRoot, pathToJest),
+    new StandardParser(workspaceRoot, log, pathToJest),
   ];
 
   const matchingParsers = await Promise.all(

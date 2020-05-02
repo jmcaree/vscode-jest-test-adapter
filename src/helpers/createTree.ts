@@ -118,16 +118,16 @@ const parseFolderAndFileNames = (
 ): { folders: string[]; fileName: string; rootPath: string } => {
   const { dir: directory, base: fileName } = parse(result.file);
 
-  if (!result.file.startsWith(projectRootNode.rootPath)) {
+  if (!result.file.startsWith(projectRootNode.config.rootPath)) {
     throw Error("Given file is not within workspace root.");
   }
 
   const folders = directory
-    .replace(projectRootNode.rootPath, "")
+    .replace(projectRootNode.config.rootPath, "")
     .split(pathSeparator)
     .filter(p => p.length !== 0);
 
-  return { folders, fileName, rootPath: projectRootNode.rootPath };
+  return { folders, fileName, rootPath: projectRootNode.config.rootPath };
 };
 
 const convertDescribeBlocksAndTests = (

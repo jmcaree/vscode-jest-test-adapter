@@ -30,13 +30,21 @@ const getFileType = (filePath: string, matcher: Matcher): FileType => {
 };
 
 const isApplicationFile = (filePath: string): boolean => {
-  // TODO consider whether mixed case extensions will operate correctly in case sensitive file systems like linux...
-  return /.*\.(?:js|ts)x?$/.test(filePath.toLowerCase());
+  const regex = /.*\.(?:js|ts)x?$/;
+  if (process.platform === "win32") {
+    // since Windows is case insensitive, we can lowercase the file path
+    filePath = filePath.toLowerCase();
+  }
+  return regex.test(filePath);
 };
 
 const isConfigFile = (filePath: string): boolean => {
-  // TODO consider whether mixed case extensions will operate correctly in case sensitive file systems like linux...
-  return /.*\.(?:spec|test)\.(?:js|ts)x?$/.test(filePath.toLowerCase());
+  const regex = /.*\.(?:spec|test)\.(?:js|ts)x?$/;
+  if (process.platform === "win32") {
+    // since Windows is case insensitive, we can lowercase the file path
+    filePath = filePath.toLowerCase();
+  }
+  return regex.test(filePath);
 };
 
 class TestLoader {
@@ -52,12 +60,7 @@ class TestLoader {
     private readonly log: Log,
     private readonly projectConfig: ProjectConfig,
   ) {
-    this.tree = createProjectNode(
-      projectConfig.projectName,
-      projectConfig.projectName,
-      projectConfig.rootPath,
-      projectConfig.jestConfig!,
-    );
+    this.tree = createProjectNode(projectConfig.projectName, projectConfig.projectName, projectConfig);
 
     this.environmentChangedEmitter = new vscode.EventEmitter<EnvironmentChangedEvent>();
     this.testParser = new TestParser(projectConfig.rootPath, this.log, this.settings);

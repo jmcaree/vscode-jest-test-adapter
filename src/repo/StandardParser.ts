@@ -4,7 +4,7 @@ import util from "util";
 import { Log } from "vscode-test-adapter-util";
 import { convertErrorToString, getJestConfigInDirectory } from "../utils";
 import RepoParserBase from "./RepoParserBase";
-import { RepoParser } from "./types";
+import { ProjectConfig, RepoParser } from "./types";
 
 // the following requires Node 8 minimum.
 const exists = util.promisify(fs.exists);
@@ -13,17 +13,18 @@ const readFile = util.promisify(fs.readFile);
 class StandardParser extends RepoParserBase implements RepoParser {
   public type = "default";
 
-  constructor(private workspaceRoot: string, private log: Log) {
+  constructor(private workspaceRoot: string, private log: Log, private pathToJest: string) {
     super();
   }
 
-  public async getProjects() {
-    const jestConfig = await getJestConfig(this.workspaceRoot);
+  public async getProjects(): Promise<ProjectConfig[]> {
+    const jestConfig = (await getJestConfigInDirectory(this.workspaceRoot)) ?? undefined;
     const setupFile = await getJestSetupFile(this.log, jestConfig);
 
     return Promise.resolve([
       {
         jestConfig,
+        pathToJest: this.pathToJest,
         projectName: await getProjectName(this.workspaceRoot),
         rootPath: this.workspaceRoot,
         setupFile,
@@ -38,11 +39,10 @@ class StandardParser extends RepoParserBase implements RepoParser {
 }
 
 const isStandard = async (workspaceRoot: string): Promise<boolean> => {
-  // check that package.json and jest.config.js/ts exists.
   const packageJsonPath = path.resolve(workspaceRoot, "package.json");
-  const jestConfig = await getJestConfigInDirectory(workspaceRoot);
-
-  return (await exists(packageJsonPath)) && jestConfig !== null;
+  // TODO we should also check that the jest package is installed, or that we are using a
+  // globally installed one.  Otherwise, this may not be a Jest project.
+  return await exists(packageJsonPath);
 };
 
 const getProjectName = async (workspaceRoot: string): Promise<string> => {
@@ -54,9 +54,6 @@ const getProjectName = async (workspaceRoot: string): Promise<string> => {
 
   return "default";
 };
-
-const getJestConfig = async (workspaceRoot: string): Promise<string | undefined> =>
-  (await getJestConfigInDirectory(workspaceRoot)) ?? undefined;
 
 const getTsConfig = async (workspaceRoot: string): Promise<string | undefined> => {
   const tsConfigPath = path.resolve(workspaceRoot, "tsconfig.json");

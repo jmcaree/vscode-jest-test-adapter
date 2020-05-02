@@ -1,7 +1,7 @@
 import { JestTotalResults, Options, Runner, TestReconciler } from "jest-editor-support";
-import { ProjectWorkspace } from "jest-editor-support";
 import { WorkspaceFolder } from "vscode";
 import { createRunner } from './JestSettings';
+import { ProjectConfig } from './repo';
 import { IJestResponse, ITestFilter } from "./types";
 
 export enum DebugOutput {
@@ -26,16 +26,12 @@ export default class JestManager {
     this.activeRunners.clear();
   }
 
-  public loadTests(projectWorkspace: ProjectWorkspace): Promise<IJestResponse | null> {
-    return this.runTests(null, projectWorkspace);
-  }
-
   public async runTests(
     testFilter: ITestFilter | null,
-    projectWorkspace: ProjectWorkspace,
+    projectConfig: ProjectConfig,
   ): Promise<IJestResponse | null> {
     const results = await new Promise<JestTotalResults | null>((resolve, reject) => {
-      const runner = this.createRunner(testFilter, projectWorkspace);
+      const runner = this.createRunner(testFilter, projectConfig);
       runner
         .once("executableJSON", (data: JestTotalResults) => resolve(data))
         .once("exception", result => reject(result))
@@ -56,7 +52,7 @@ export default class JestManager {
     };
   }
 
-  private createRunner(testFilter: ITestFilter | null, projectWorkspace: ProjectWorkspace): Runner {
+  private createRunner(testFilter: ITestFilter | null, projectConfig: ProjectConfig): Runner {
     const options: Options = {
       testFileNamePattern:
         testFilter && testFilter.testFileNamePattern ? `"${testFilter.testFileNamePattern}"` : undefined,
@@ -64,7 +60,7 @@ export default class JestManager {
         testFilter && testFilter.testNamePattern ? `"${testFilter.testNamePattern.replace(/"/g, '\\"')}"` : undefined,
     };
 
-    const runner = createRunner(projectWorkspace, options);
+    const runner = createRunner(projectConfig, options);
     this.activeRunners.add(runner);
     return (
       runner
