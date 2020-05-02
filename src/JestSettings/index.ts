@@ -5,7 +5,6 @@ import {
   ProjectWorkspace,
   Runner,
 } from "jest-editor-support";
-import path from "path";
 import { ProjectConfig } from "../repo";
 
 const getSettings = (projectConfig: ProjectConfig): Promise<JestSettings> => {
@@ -17,20 +16,8 @@ const createRunner = (projectConfig: ProjectConfig, options: Options) => {
 };
 
 const convertToWorkspace = (projectConfig: ProjectConfig): ProjectWorkspace => {
-  let rootPath: string;
-  let jestCommand: string;
+  let jestCommand = projectConfig.jestCommand;
   let pathToConfig: string;
-
-  if (projectConfig.pathToJest === "jest") {
-    // globally installed jest.
-    jestCommand = "jest";
-    rootPath = projectConfig.rootPath;
-  } else {
-    // jest is locally installed.
-    const { base, dir } = path.parse(projectConfig.pathToJest);
-    jestCommand = base;
-    rootPath = dir;
-  }
 
   if (projectConfig.jestConfig) {
     // jest config file exists.
@@ -50,10 +37,10 @@ const convertToWorkspace = (projectConfig: ProjectConfig): ProjectWorkspace => {
   // jest-editor-support will use the root path for the cwd and pathToJest as the command of the process to get Jest
   // settings.  This overcomes issues with whitespace in the path of the command too.
   return {
-    localJestMajorVersion: 20, // TODO we could actually get this from the command line if we wanted.
+    localJestMajorVersion: 20,
     pathToConfig,
     pathToJest: jestCommand,
-    rootPath,
+    rootPath: projectConfig.jestExecutionDirectory,
   };
 };
 

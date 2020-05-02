@@ -1,14 +1,27 @@
+import path from "path";
 import vscode from "vscode";
-import { RepoParser } from '.';
+import { Log } from "vscode-test-adapter-util";
+import { RepoParser } from ".";
 
 export default class RepoParserBase implements Pick<RepoParser, "projectChange"> {
   private projectChangedEmitter: vscode.EventEmitter<any>;
 
-  constructor() {
+  constructor(protected workspaceRoot: string, protected log: Log, protected pathToJest: string) {
     this.projectChangedEmitter = new vscode.EventEmitter<any>();
   }
 
   public get projectChange() {
     return this.projectChangedEmitter.event;
+  }
+
+  protected getJestCommandAndDirectory() {
+    if (this.pathToJest === "jest") {
+      // globally installed jest.
+      return { jestCommand: "jest", jestExecutionDirectory: this.workspaceRoot };
+    } else {
+      // jest is locally installed.
+      const { base, dir } = path.parse(this.pathToJest);
+      return { jestCommand: base, jestExecutionDirectory: dir };
+    }
   }
 }

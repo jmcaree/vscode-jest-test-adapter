@@ -2,14 +2,12 @@ import vscode from "vscode";
 
 export interface ProjectConfig {
   jestConfig?: string;
-  tsConfig?: string;
-  setupFile?: string;
+  jestCommand: string;
+  jestExecutionDirectory: string;
   projectName: string;
-
-  pathToJest: string;
-
-  // TODO we should retrieve this from the jestConfig.
   rootPath: string;
+  setupFile?: string;
+  tsConfig?: string;
 }
 
 export type ProjectChangeEvent =
