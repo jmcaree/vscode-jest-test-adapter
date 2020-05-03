@@ -1,4 +1,5 @@
-import { Log } from 'vscode-test-adapter-util';
+import { Log } from "vscode-test-adapter-util";
+import { CreateReactAppParser } from "./CreateReactAppParser";
 import { NxdevAngular } from "./NxdevAngular";
 import { NxdevReact } from "./NxdevReact";
 import { StandardParser } from "./StandardParser";
@@ -7,11 +8,12 @@ import { ProjectConfig, RepoParser } from "./types";
 /**
  * Returns a RepoParser if one matches the given workspaceRoot otherwise returns null.
  */
-const getRepoParser = async (workspaceRoot: string, log: Log): Promise<RepoParser | null> => {
+const getRepoParser = async (workspaceRoot: string, log: Log, pathToJest: string): Promise<RepoParser | null> => {
   const repoParsers: RepoParser[] = [
-    new NxdevAngular(workspaceRoot),
-    new NxdevReact(workspaceRoot),
-    new StandardParser(workspaceRoot, log),
+    new NxdevAngular(workspaceRoot, log, pathToJest),
+    new NxdevReact(workspaceRoot, log, pathToJest),
+    new CreateReactAppParser(workspaceRoot, log, pathToJest),
+    new StandardParser(workspaceRoot, log, pathToJest),
   ];
 
   const matchingParsers = await Promise.all(

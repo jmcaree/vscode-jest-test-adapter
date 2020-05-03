@@ -2,28 +2,32 @@ import fs from "fs";
 import path from "path";
 import util from "util";
 import { Log } from "vscode-test-adapter-util";
-import { convertErrorToString, getJestConfigInDirectory } from "../helpers/utils";
+import { getJestConfigInDirectory } from "../utils";
+import { getJestSetupFile, getProjectName, getTsConfig } from "./repoHelpers";
 import RepoParserBase from "./RepoParserBase";
-import { RepoParser } from "./types";
+import { ProjectConfig, RepoParser } from "./types";
 
 // the following requires Node 8 minimum.
 const exists = util.promisify(fs.exists);
-const readFile = util.promisify(fs.readFile);
 
 class StandardParser extends RepoParserBase implements RepoParser {
   public type = "default";
 
-  constructor(private workspaceRoot: string, private log: Log) {
-    super();
+  constructor(workspaceRoot: string, log: Log, pathToJest: string) {
+    super(workspaceRoot, log, pathToJest);
   }
 
-  public async getProjects() {
-    const jestConfig = await getJestConfig(this.workspaceRoot);
+  public async getProjects(): Promise<ProjectConfig[]> {
+    const jestConfig = (await getJestConfigInDirectory(this.workspaceRoot)) ?? undefined;
     const setupFile = await getJestSetupFile(this.log, jestConfig);
+
+    const { jestCommand, jestExecutionDirectory } = this.getJestCommandAndDirectory();
 
     return Promise.resolve([
       {
+        jestCommand,
         jestConfig,
+        jestExecutionDirectory,
         projectName: await getProjectName(this.workspaceRoot),
         rootPath: this.workspaceRoot,
         setupFile,
@@ -38,54 +42,10 @@ class StandardParser extends RepoParserBase implements RepoParser {
 }
 
 const isStandard = async (workspaceRoot: string): Promise<boolean> => {
-  // check that package.json and jest.config.js/ts exists.
   const packageJsonPath = path.resolve(workspaceRoot, "package.json");
-  const jestConfig = await getJestConfigInDirectory(workspaceRoot);
-
-  return (await exists(packageJsonPath)) && jestConfig !== null;
-};
-
-const getProjectName = async (workspaceRoot: string): Promise<string> => {
-  if (await exists(path.resolve(workspaceRoot, "package.json"))) {
-    const buffer = readFile(path.resolve(workspaceRoot, "package.json"));
-    const json = JSON.parse((await buffer).toString());
-    return json.displayName || json.name;
-  }
-
-  return "default";
-};
-
-const getJestConfig = async (workspaceRoot: string): Promise<string | undefined> =>
-  (await getJestConfigInDirectory(workspaceRoot)) ?? undefined;
-
-const getTsConfig = async (workspaceRoot: string): Promise<string | undefined> => {
-  const tsConfigPath = path.resolve(workspaceRoot, "tsconfig.json");
-  if (await exists(tsConfigPath)) {
-    return tsConfigPath;
-  }
-
-  return undefined;
-};
-
-const getJestSetupFile = async (log: Log, jestConfig?: string): Promise<string | undefined> => {
-  if (jestConfig && (await exists(jestConfig))) {
-    try {
-      const buffer = await readFile(jestConfig);
-      const config = JSON.parse(buffer.toString());
-      if (config.setupFiles && config.setupFiles.length > 0) {
-        // TODO what should we do if there is more than one file?
-        return config.setupFiles[0];
-      } else if (config.setupFilesAfterEnv && config.setupFilesAfterEnv.length > 0) {
-        // TODO what should we do if there is more than one file?
-        return config.setupFilesAfterEnv[0];
-      }
-      return undefined;
-    } catch (error) {
-      log.error(`Error trying to parse Jest setup file: ${jestConfig}`, convertErrorToString(error));
-    }
-  }
-
-  return undefined;
+  // TODO we should also check that the jest package is installed, or that we are using a globally installed one.
+  // Otherwise, this may not be a Jest project.
+  return await exists(packageJsonPath);
 };
 
 export { StandardParser };

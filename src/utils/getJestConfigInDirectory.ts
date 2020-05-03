@@ -1,10 +1,5 @@
 import { cosmiconfig } from "cosmiconfig";
 import { Loaders } from "cosmiconfig/dist/types";
-import { inspect } from "util";
-
-const convertErrorToString = (error: Error): string => {
-  return inspect(error, false, 2, true);
-};
 
 const getJestConfigInDirectory = async (directory: string): Promise<string | null> => {
   const result = await cosmiconfig("jest", { stopDir: directory, loaders: customLoaders }).search(directory);
@@ -23,4 +18,4 @@ const customLoaders: Loaders = {
   ".js": (filepath, content) => ({}),
 };
 
-export { convertErrorToString, getJestConfigInDirectory };
+export { getJestConfigInDirectory };
