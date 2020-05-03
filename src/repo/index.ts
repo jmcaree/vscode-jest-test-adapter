@@ -1,4 +1,5 @@
 import { Log } from "vscode-test-adapter-util";
+import { CreateReactAppParser } from "./CreateReactAppParser";
 import { NxdevAngular } from "./NxdevAngular";
 import { NxdevReact } from "./NxdevReact";
 import { StandardParser } from "./StandardParser";
@@ -11,6 +12,7 @@ const getRepoParser = async (workspaceRoot: string, log: Log, pathToJest: string
   const repoParsers: RepoParser[] = [
     new NxdevAngular(workspaceRoot, log, pathToJest),
     new NxdevReact(workspaceRoot, log, pathToJest),
+    new CreateReactAppParser(workspaceRoot, log, pathToJest),
     new StandardParser(workspaceRoot, log, pathToJest),
   ];
 
