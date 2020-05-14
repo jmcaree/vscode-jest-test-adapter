@@ -26,7 +26,7 @@ class CreateReactAppParser extends RepoParserBase implements RepoParser {
 
     await this.ensureInitPackageJson();
     if (!this.packageJson) {
-      this.log.info("Attempted to get projects for Create React App project but the package.json file was not found.")
+      this.log.info("Attempted to get projects for Create React App project but the package.json file was not found.");
       return [];
     }
 
@@ -64,7 +64,7 @@ class CreateReactAppParser extends RepoParserBase implements RepoParser {
   private async ensureInitPackageJson() {
     if (!this.packageJson) {
       const packageJsonPath = path.resolve(this.workspaceRoot, "package.json");
-      if (!exists(packageJsonPath)) {
+      if ((await exists(packageJsonPath)) === false) {
         return;
       }
 
