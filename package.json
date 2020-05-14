@@ -51,6 +51,7 @@
     "jest-editor-support": "^27.1.0",
     "lodash": "^4.17.15",
     "micromatch": "^4.0.2",
+    "semver": "^7.3.2",
     "tslib": "^1.11.1",
     "vscode-test-adapter-api": "^1.7.0",
     "vscode-test-adapter-util": "^0.7.0"
@@ -60,6 +61,7 @@
     "@types/lodash": "^4.14.149",
     "@types/micromatch": "^4.0.1",
     "@types/node": "^13.1.4",
+    "@types/semver": "^7.1.0",
     "@types/vscode": "^1.30.0",
     "@types/webpack": "^4.41.11",
     "jest": "^25.3.0",
@@ -124,6 +126,13 @@
           "title": "Hide Empty Projects",
           "type": "boolean",
           "default": true
+        },
+        "jestTestExplorer.featureToggles": {
+          "description": "A list of feature toggles to enable experimental features.",
+          "scope": "window",
+          "title": "Feature Toggles",
+          "type": "array",
+          "default": []
         }
       }
     }
