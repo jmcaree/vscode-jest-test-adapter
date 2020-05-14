@@ -6,7 +6,6 @@ export interface ProjectConfig {
   jestExecutionDirectory: string;
   projectName: string;
   rootPath: string;
-  setupFile?: string;
   tsConfig?: string;
 }
 
