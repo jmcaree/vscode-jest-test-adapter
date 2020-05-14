@@ -20,8 +20,8 @@ export default class RepoParserBase implements Pick<RepoParser, "projectChange">
       return { jestCommand: "jest", jestExecutionDirectory: this.workspaceRoot };
     } else {
       // jest is locally installed.
-      const { base, dir } = path.parse(this.pathToJest);
-      return { jestCommand: base, jestExecutionDirectory: dir };
+      const jestCommand = path.relative(this.workspaceRoot, this.pathToJest);
+      return { jestCommand, jestExecutionDirectory: this.workspaceRoot };
     }
   }
 }
