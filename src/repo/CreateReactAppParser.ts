@@ -5,7 +5,7 @@ import path from "path";
 import util from "util";
 import { Log } from "vscode-test-adapter-util";
 import { getJestConfigInDirectory } from "../utils";
-import { getJestSetupFile, getProjectName, getTsConfig } from "./repoHelpers";
+import { getProjectName, getTsConfig } from "./repoHelpers";
 import RepoParserBase from "./RepoParserBase";
 import { ProjectConfig, RepoParser } from "./types";
 
@@ -23,7 +23,6 @@ class CreateReactAppParser extends RepoParserBase implements RepoParser {
 
   public async getProjects(): Promise<ProjectConfig[]> {
     const jestConfig = (await getJestConfigInDirectory(this.workspaceRoot)) ?? undefined;
-    const setupFile = await getJestSetupFile(this.log, jestConfig);
 
     await this.ensureInitPackageJson();
     if (!this.packageJson) {
@@ -45,7 +44,6 @@ class CreateReactAppParser extends RepoParserBase implements RepoParser {
         jestExecutionDirectory: this.workspaceRoot,
         projectName: await getProjectName(this.workspaceRoot),
         rootPath: this.workspaceRoot,
-        setupFile,
         tsConfig: await getTsConfig(this.workspaceRoot),
       },
     ];
