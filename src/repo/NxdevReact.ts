@@ -33,14 +33,10 @@ class NxdevReact extends NxdevBase<NxReact> implements RepoParser {
   protected configMap = ([projectName, projectConfig]: [string, NxReact]) => {
     const options = projectConfig.architect.test.options;
 
-    const { jestCommand, jestExecutionDirectory } = this.getJestCommandAndDirectory();
-
     return {
-      jestCommand,
+      ...this.getJestExecutionParameters(projectName),
       jestConfig: path.resolve(this.workspaceRoot, options.jestConfig),
-      jestExecutionDirectory,
       projectName,
-      // TODO this is assuming that the project root is where the jest config is.
       rootPath: path.resolve(this.workspaceRoot, path.dirname(options.jestConfig)),
       setupFile: options.setupFile && path.resolve(this.workspaceRoot, options.setupFile),
       tsConfig: path.resolve(this.workspaceRoot, options.tsConfig),
