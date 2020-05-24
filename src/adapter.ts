@@ -11,7 +11,7 @@ import {
   TestSuiteEvent,
 } from "vscode-test-adapter-api";
 import { Log } from "vscode-test-adapter-util";
-import { emitTestCompleteRootNode, emitTestRunningRootNode } from "./helpers/emitTestCompleteRootNode";
+import { emitTestCompleteRootNode } from "./helpers/emitTestCompleteRootNode";
 import { filterTree } from "./helpers/filterTree";
 import { mapIdToString, mapStringToId } from "./helpers/idMaps";
 import { mapJestTestResultsToTestEvents } from "./helpers/mapJestTestResultsToTestEvents";
@@ -192,11 +192,8 @@ export default class JestTestAdapter implements TestAdapter {
 
     const testFilter = mapTestIdsToTestFilter(testsToRun);
 
-    // we emit events to notify which tests we are running.
-    const filteredTree = filterTree(project, testsToRun);
-    emitTestRunningRootNode(filteredTree, eventEmitter);
-
     // begin running the tests in Jest.
+    const filteredTree = filterTree(project, testsToRun);
     const jestResponse = await this.jestManager.runTests(testFilter, project.config);
 
     if (jestResponse) {
