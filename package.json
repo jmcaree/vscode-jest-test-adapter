@@ -9,7 +9,7 @@
     "Craig Fleming (https://github.com/rythos42)",
     "Ross Knudsen (https://github.com/rossknudsen)"
   ],
-  "version": "0.2.0",
+  "version": "0.5.1",
   "preview": true,
   "license": "MIT",
   "homepage": "https://github.com/kavod-io/vscode-jest-test-adapter",
