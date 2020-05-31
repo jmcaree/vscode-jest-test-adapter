@@ -80,29 +80,24 @@ const mapFileNodeToTestSuite = (file: FileNode | FileWithParseErrorNode): TestSu
       return {
         ...common,
         children: [],
-        description: "(parse error)",
-        tooltip: "Error parsing test file.  This may not be an issue with your code, but check the extension logs for details."
+        errored: true,
+        message: file.error,
+        tooltip: "Error parsing test file.  This may not be an issue with your code, but check the extension logs for details.",
       };
   }
 };
 
 const mapDescribeBlockToTestSuite = (describe: DescribeNode): TestSuiteInfo => ({
+  ...describe,
   children: describe.describeBlocks
     .map(d => mapDescribeBlockToTestSuite(d) as TestInfo | TestSuiteInfo)
     .concat(describe.tests.map(mapTestToTestInfo)),
-  file: describe.file,
-  id: describe.id,
-  label: describe.label,
-  line: describe.line,
   type: "suite",
 });
 
 const mapTestToTestInfo = (test: TestNode): TestInfo => ({
-  file: test.file,
-  id: test.id,
-  label: test.label,
-  line: test.line,
+  ...test,
   type: "test",
 });
 
-export { mapWorkspaceRootToSuite };
+export { mapWorkspaceRootToSuite, mapFileNodeToTestSuite, mapDescribeBlockToTestSuite, mapTestToTestInfo };
