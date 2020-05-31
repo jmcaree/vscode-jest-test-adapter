@@ -92,7 +92,7 @@ class TestLoader {
         .parseAll()
         .then(parsedResults => {
           parsedResults.map(r => r.file).forEach(f => this.testFiles.add(f));
-          this.tree = mergeTree(this.tree, parsedResults, this.projectConfig.rootPath);
+          this.tree = mergeTree(this.tree, parsedResults, this.projectConfig.rootPath, false);
         })
         .then(() => this.log.info(`Force loading process completed.`))
         .catch(error => this.log.error("Error while reloading all tests.", convertErrorToString(error)))
@@ -130,7 +130,7 @@ class TestLoader {
       case "Test":
         this.testFiles.add(filePath);
         const parseResults = this.testParser.parseFiles([filePath]);
-        this.tree = mergeTree(this.tree, parseResults, this.projectConfig.rootPath);
+        this.tree = mergeTree(this.tree, parseResults, this.projectConfig.rootPath, false);
         this.environmentChangedEmitter.fire({
           ...getDefaultTestEnvironmentChangedEvent(this.testFiles, this.tree),
           addedTestFiles: [filePath],
@@ -182,7 +182,7 @@ class TestLoader {
         this.testFiles.add(filePath);
         const parseResults = this.testParser.parseFiles([filePath]);
         // Removing the file from the tree and then merge it back in should correctly update the tree.
-        this.tree = mergeTree(deleteFileFromTree(this.tree, filePath), parseResults, this.projectConfig.rootPath);
+        this.tree = mergeTree(deleteFileFromTree(this.tree, filePath), parseResults, this.projectConfig.rootPath, false);
         this.environmentChangedEmitter.fire({
           ...getDefaultTestEnvironmentChangedEvent(this.testFiles, this.tree),
           invalidatedTestIds: [filePath],

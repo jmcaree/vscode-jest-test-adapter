@@ -43,6 +43,8 @@ export interface FileNode extends NodeBase {
 
 export interface FileWithParseErrorNode extends NodeBase {
   type: "fileWithParseError";
+  describeBlocks: DescribeNode[];
+  tests: TestNode[];
   file: string;
   error: string;
 }
@@ -52,13 +54,15 @@ export interface DescribeNode extends NodeBase {
   type: "describe";
   tests: TestNode[];
   file: string;
-  line: number;
+  line?: number;
+  runtimeDiscovered: boolean;
 }
 
 export interface TestNode extends NodeBase {
   type: "test";
   file: string;
   line: number;
+  runtimeDiscovered: boolean;
 }
 
 export interface NodeVisitor {
@@ -119,27 +123,31 @@ export const createFileWithParseErrorNode = (
   file: string,
   error: string,
 ): FileWithParseErrorNode => ({
+  describeBlocks: [],
   error,
   file,
   id,
   label,
+  tests: [],
   type: "fileWithParseError",
 });
 
-export const createDescribeNode = (id: string, label: string, file: string, line: number): DescribeNode => ({
+export const createDescribeNode = (id: string, label: string, file: string, line: number | undefined, runtimeDiscovered: boolean): DescribeNode => ({
   describeBlocks: [],
   file,
   id,
   label,
   line,
+  runtimeDiscovered,
   tests: [],
   type: "describe",
 });
 
-export const createTestNode = (id: string, label: string, file: string, line: number): TestNode => ({
+export const createTestNode = (id: string, label: string, file: string, line: number | undefined, runtimeDiscovered: boolean): TestNode => ({
   file,
   id,
   label,
-  line,
+  line: line ?? 0,
+  runtimeDiscovered,
   type: "test",
 });

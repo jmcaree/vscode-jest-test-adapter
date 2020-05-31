@@ -1,4 +1,6 @@
+import _ from "lodash";
 import { TestEvent, TestRunFinishedEvent, TestRunStartedEvent, TestSuiteEvent } from "vscode-test-adapter-api";
+import { mapDescribeBlockToTestSuite, mapTestToTestInfo } from "./mapTreeToSuite";
 import {
   DescribeNode,
   FileNode,
@@ -98,23 +100,14 @@ const emitTestCompleteFile = (
     type: "suite",
   });
 
-  switch (file.type) {
-    case "file":
-      file.tests.forEach(t => emitTestCompleteTest(t, testEvents, eventEmitter));
-      file.describeBlocks.forEach(d => emitTestCompleteDescribe(d, testEvents, eventEmitter));
+  file.tests.forEach(t => emitTestCompleteTest(t, testEvents, eventEmitter));
+  file.describeBlocks.forEach(d => emitTestCompleteDescribe(d, testEvents, eventEmitter));
 
-      eventEmitter({
-        state: "completed",
-        suite: file.id,
-        type: "suite",
-      });
-      break;
-
-    case "fileWithParseError":
-      // Currently we do not emit anything to indicate that we are running the files with parse errors.  This may not
-      // be the correct choice...
-      break;
-  }
+  eventEmitter({
+    state: "completed",
+    suite: file.id,
+    type: "suite",
+  });
 };
 
 const emitTestCompleteDescribe = (
@@ -122,9 +115,11 @@ const emitTestCompleteDescribe = (
   testEvents: TestEvent[],
   eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
 ) => {
+  const suite = describe.runtimeDiscovered ? mapDescribeBlockToTestSuite(describe) : describe.id;
+
   eventEmitter({
     state: "running",
-    suite: describe.id,
+    suite,
     type: "suite",
   });
 
@@ -146,9 +141,11 @@ const emitTestCompleteTest = (
   const testEvent = testEvents.find(e => e.test === test.id);
 
   if (testEvent) {
+    const testId = test.runtimeDiscovered ? mapTestToTestInfo(test) : test.id;
+
     eventEmitter({
       state: "running",
-      test: test.id,
+      test: testId,
       type: "test",
     });
 
