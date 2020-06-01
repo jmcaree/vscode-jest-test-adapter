@@ -153,4 +153,97 @@ const emitTestCompleteTest = (
   }
 };
 
-export { emitTestCompleteRootNode };
+const emitTestRunningRootNode = (
+  root: WorkspaceRootNode | ProjectRootNode,
+  eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
+): void => {
+  switch (root.type) {
+    case "workspaceRootNode":
+      emitTestRunningWorkspaceRootNode(root, eventEmitter);
+      break;
+
+    case "projectRootNode":
+      emitTestRunningProjectRootNode(root, eventEmitter);
+      break;
+  }
+};
+
+const emitTestRunningWorkspaceRootNode = (
+  root: WorkspaceRootNode,
+  eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
+) => {
+  eventEmitter({
+    state: "running",
+    suite: root.id,
+    type: "suite",
+  });
+
+  root.projects.forEach(p => emitTestRunningProjectRootNode(p, eventEmitter));
+};
+
+const emitTestRunningProjectRootNode = (
+  root: ProjectRootNode,
+  eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
+) => {
+  eventEmitter({
+    state: "running",
+    suite: root.id,
+    type: "suite",
+  });
+
+  root.folders.forEach(f => emitTestRunningFolder(f, eventEmitter));
+  root.files.forEach(f => emitTestRunningFile(f, eventEmitter));
+};
+
+const emitTestRunningFolder = (
+  folder: FolderNode,
+  eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
+) => {
+  eventEmitter({
+    state: "running",
+    suite: folder.id,
+    type: "suite",
+  });
+  folder.folders.forEach(f => emitTestRunningFolder(f, eventEmitter));
+  folder.files.forEach(f => emitTestRunningFile(f, eventEmitter));
+};
+
+const emitTestRunningFile = (
+  file: FileNode | FileWithParseErrorNode,
+  eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
+) => {
+  eventEmitter({
+    state: "running",
+    suite: file.id,
+    type: "suite",
+  });
+
+  file.describeBlocks.forEach(d => emitTestRunningDescribe(d, eventEmitter));
+  file.tests.forEach(t => emitTestRunningTest(t, eventEmitter));
+};
+
+const emitTestRunningDescribe = (
+  describe: DescribeNode,
+  eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
+) => {
+  eventEmitter({
+    state: "running",
+    suite: describe.id,
+    type: "suite",
+  });
+  describe.describeBlocks.forEach(d => emitTestRunningDescribe(d, eventEmitter));
+  describe.tests.forEach(t => emitTestRunningTest(t, eventEmitter));
+};
+
+const emitTestRunningTest = (
+  test: TestNode,
+  eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
+) => {
+  eventEmitter({
+    state: "running",
+    test: test.id,
+    type: "test",
+  });
+};
+
+export { emitTestCompleteRootNode, emitTestRunningRootNode };
