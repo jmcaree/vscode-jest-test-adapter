@@ -53,7 +53,7 @@
     "micromatch": "^4.0.2",
     "semver": "^7.3.2",
     "tslib": "^1.11.1",
-    "vscode-test-adapter-api": "^1.7.0",
+    "vscode-test-adapter-api": "^1.9.0",
     "vscode-test-adapter-util": "^0.7.0"
   },
   "devDependencies": {

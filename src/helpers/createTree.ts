@@ -34,6 +34,7 @@ const mergeTree = (
   tree: ProjectRootNode,
   parseResults: TestFileParseResult[],
   projectRoot: string,
+  runtimeDiscovered:boolean
 ): ProjectRootNode => {
   parseResults.forEach(parseResult => {
     // process all the folder nodes...
@@ -86,6 +87,7 @@ const mergeTree = (
           describeBlocks,
           file,
           fileNode.id,
+          runtimeDiscovered,
         );
 
         fileNode.describeBlocks = nestedDescribeBlocks;
@@ -135,6 +137,7 @@ const convertDescribeBlocksAndTests = (
   describeBlocks: DescribeBlock[],
   file: string,
   parentId: string,
+  runtimeDiscovered: boolean
 ) => {
   const { describeBlocks: nestedDescribeBlocks, tests: standaloneTests } = mergeDescribeBlocksAndTests(
     itBlocks,
@@ -142,8 +145,8 @@ const convertDescribeBlocksAndTests = (
   );
 
   return {
-    describeBlocks: nestedDescribeBlocks.map(d => createDescribeNode(d, parentId, file)),
-    tests: standaloneTests.map(t => createTestNode(t, parentId, file)),
+    describeBlocks: nestedDescribeBlocks.map(d => createDescribeNode(d, parentId, file, runtimeDiscovered)),
+    tests: standaloneTests.map(t => createTestNode(t, parentId, file, runtimeDiscovered)),
   };
 };
 
@@ -175,26 +178,28 @@ const mergeDescribeBlocksAndTests = (itBlocks: ItBlock[], describeBlocks: Descri
   );
 };
 
-const createDescribeNode = (d: Describe, parentId: string, file: string): DescribeNode => {
+const createDescribeNode = (d: Describe, parentId: string, file: string, runtimeDiscovered: boolean): DescribeNode => {
   const expectedDescribeBlockId = `${parentId}${DESCRIBE_ID_SEPARATOR}${d.name}`;
   return {
-    describeBlocks: d.describeBlocks.map(x => createDescribeNode(x, expectedDescribeBlockId, file)),
+    describeBlocks: d.describeBlocks.map(x => createDescribeNode(x, expectedDescribeBlockId, file,runtimeDiscovered)),
     file,
     id: expectedDescribeBlockId,
     label: d.name,
     line: d.start.line - 1,
-    tests: d.tests.map(t => createTestNode(t, expectedDescribeBlockId, file)),
+    runtimeDiscovered,
+    tests: d.tests.map(t => createTestNode(t, expectedDescribeBlockId, file, runtimeDiscovered)),
     type: "describe",
   };
 };
 
-const createTestNode = (t: ItBlock, parentId: string, file: string): TestNode => {
+const createTestNode = (t: ItBlock, parentId: string, file: string, runtimeDiscovered: boolean): TestNode => {
   const expectedTestId = `${parentId}${TEST_ID_SEPARATOR}${t.name}`;
   return {
     file,
     id: expectedTestId,
     label: t.name,
     line: t.start.line - 1,
+    runtimeDiscovered,
     type: "test",
   };
 };

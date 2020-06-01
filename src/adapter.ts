@@ -17,6 +17,7 @@ import { mapIdToString, mapStringToId } from "./helpers/idMaps";
 import { mapJestTestResultsToTestEvents } from "./helpers/mapJestTestResultsToTestEvents";
 import { mapTestIdsToTestFilter } from "./helpers/mapTestIdsToTestFilter";
 import { mapWorkspaceRootToSuite } from "./helpers/mapTreeToSuite";
+import mergeRuntimeResults from "./helpers/mergeRuntimeResults";
 import { createWorkspaceRootNode, ProjectRootNode, WorkspaceRootNode } from "./helpers/tree";
 import JestManager, { JestTestAdapterOptions } from "./JestManager";
 import ProjectManager from "./ProjectManager";
@@ -200,9 +201,14 @@ export default class JestTestAdapter implements TestAdapter {
     const jestResponse = await this.jestManager.runTests(testFilter, project.config);
 
     if (jestResponse) {
-      // emit the completion events.
-      const testEvents = mapJestTestResultsToTestEvents(jestResponse, filteredTree);
-      emitTestCompleteRootNode(filteredTree, testEvents, eventEmitter);
+      // combine the runtime discovered tests.
+      const treeWithRuntime = mergeRuntimeResults(project, jestResponse.results.testResults);
+
+      // filter the tree
+      const filteredTreeWithRuntime = filterTree(treeWithRuntime, testsToRun);
+
+      const testEvents = mapJestTestResultsToTestEvents(jestResponse, filteredTreeWithRuntime);
+      emitTestCompleteRootNode(filteredTreeWithRuntime, testEvents, eventEmitter);
     }
   }
 

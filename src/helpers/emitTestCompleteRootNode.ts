@@ -1,4 +1,6 @@
+import _ from "lodash";
 import { TestEvent, TestRunFinishedEvent, TestRunStartedEvent, TestSuiteEvent } from "vscode-test-adapter-api";
+import { mapDescribeBlockToTestSuite, mapTestToTestInfo } from "./mapTreeToSuite";
 import {
   DescribeNode,
   FileNode,
@@ -31,11 +33,18 @@ const emitTestCompleteWorkspaceRootNode = (
   eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
 ) => {
   eventEmitter({
+    state: "running",
+    suite: root.id,
+    type: "suite",
+  });
+
+  root.projects.forEach(p => emitTestCompleteProjectRootNode(p, testEvents, eventEmitter));
+
+  eventEmitter({
     state: "completed",
     suite: root.id,
     type: "suite",
   });
-  root.projects.forEach(p => emitTestCompleteProjectRootNode(p, testEvents, eventEmitter));
 };
 
 const emitTestCompleteProjectRootNode = (
@@ -44,13 +53,19 @@ const emitTestCompleteProjectRootNode = (
   eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
 ) => {
   eventEmitter({
-    state: "completed",
+    state: "running",
     suite: root.id,
     type: "suite",
   });
 
-  root.folders.forEach(f => emitTestCompleteFolder(f, testEvents, eventEmitter));
   root.files.forEach(f => emitTestCompleteFile(f, testEvents, eventEmitter));
+  root.folders.forEach(f => emitTestCompleteFolder(f, testEvents, eventEmitter));
+
+  eventEmitter({
+    state: "completed",
+    suite: root.id,
+    type: "suite",
+  });
 };
 
 const emitTestCompleteFolder = (
@@ -59,13 +74,19 @@ const emitTestCompleteFolder = (
   eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
 ) => {
   eventEmitter({
-    state: "completed",
+    state: "running",
     suite: folder.id,
     type: "suite",
   });
 
-  folder.folders.forEach(f => emitTestCompleteFolder(f, testEvents, eventEmitter));
   folder.files.forEach(f => emitTestCompleteFile(f, testEvents, eventEmitter));
+  folder.folders.forEach(f => emitTestCompleteFolder(f, testEvents, eventEmitter));
+
+  eventEmitter({
+    state: "completed",
+    suite: folder.id,
+    type: "suite",
+  });
 };
 
 const emitTestCompleteFile = (
@@ -73,21 +94,20 @@ const emitTestCompleteFile = (
   testEvents: TestEvent[],
   eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
 ) => {
-  switch (file.type) {
-    case "file":
-      eventEmitter({
-        state: "completed",
-        suite: file.id,
-        type: "suite",
-      });
-      file.describeBlocks.forEach(d => emitTestCompleteDescribe(d, testEvents, eventEmitter));
-      file.tests.forEach(t => emitTestCompleteTest(t, testEvents, eventEmitter));
-      break;
+  eventEmitter({
+    state: "running",
+    suite: file.id,
+    type: "suite",
+  });
 
-    case "fileWithParseError":
-      // TODO support is needed in Host to support suites that have errors.
-      break;
-  }
+  file.tests.forEach(t => emitTestCompleteTest(t, testEvents, eventEmitter));
+  file.describeBlocks.forEach(d => emitTestCompleteDescribe(d, testEvents, eventEmitter));
+
+  eventEmitter({
+    state: "completed",
+    suite: file.id,
+    type: "suite",
+  });
 };
 
 const emitTestCompleteDescribe = (
@@ -95,13 +115,22 @@ const emitTestCompleteDescribe = (
   testEvents: TestEvent[],
   eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
 ) => {
+  const suite = describe.runtimeDiscovered ? mapDescribeBlockToTestSuite(describe) : describe.id;
+
+  eventEmitter({
+    state: "running",
+    suite,
+    type: "suite",
+  });
+
+  describe.tests.forEach(t => emitTestCompleteTest(t, testEvents, eventEmitter));
+  describe.describeBlocks.forEach(d => emitTestCompleteDescribe(d, testEvents, eventEmitter));
+
   eventEmitter({
     state: "completed",
     suite: describe.id,
     type: "suite",
   });
-  describe.describeBlocks.forEach(d => emitTestCompleteDescribe(d, testEvents, eventEmitter));
-  describe.tests.forEach(t => emitTestCompleteTest(t, testEvents, eventEmitter));
 };
 
 const emitTestCompleteTest = (
@@ -110,7 +139,16 @@ const emitTestCompleteTest = (
   eventEmitter: (data: TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent) => void,
 ) => {
   const testEvent = testEvents.find(e => e.test === test.id);
+
   if (testEvent) {
+    const testId = test.runtimeDiscovered ? mapTestToTestInfo(test) : test.id;
+
+    eventEmitter({
+      state: "running",
+      test: testId,
+      type: "test",
+    });
+
     eventEmitter(testEvent);
   }
 };
@@ -180,17 +218,8 @@ const emitTestRunningFile = (
     type: "suite",
   });
 
-  switch (file.type) {
-    case "file":
-      file.describeBlocks.forEach(d => emitTestRunningDescribe(d, eventEmitter));
-      file.tests.forEach(t => emitTestRunningTest(t, eventEmitter));
-      break;
-
-    case "fileWithParseError":
-      // Currently we do not emit anything to indicate that we are running the files with parse errors.  This may not
-      // be the correct choice...
-      break;
-  }
+  file.describeBlocks.forEach(d => emitTestRunningDescribe(d, eventEmitter));
+  file.tests.forEach(t => emitTestRunningTest(t, eventEmitter));
 };
 
 const emitTestRunningDescribe = (
