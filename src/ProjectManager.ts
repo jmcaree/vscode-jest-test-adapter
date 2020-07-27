@@ -87,6 +87,8 @@ class ProjectManager {
           suite: this.workspaceTestState,
           type: "projectAppUpdated",
         });
+
+        this.log.info(`Application file changed: ${JSON.stringify(event)}`)
         break;
 
       case "Test":
@@ -102,6 +104,8 @@ class ProjectManager {
           testEvent: event,
           type: "projectTestsUpdated",
         });
+
+        this.log.info(`Test file changed: ${JSON.stringify(event)}`)
         break;
     }
   }
@@ -126,6 +130,8 @@ class ProjectManager {
           suite: this.workspaceTestState,
           type: "projectAdded",
         });
+
+        this.log.info(`New project added: ${event.config} ${newProject}`)
         break;
 
       case "removed":
@@ -138,6 +144,8 @@ class ProjectManager {
           suite: this.workspaceTestState,
           type: "projectRemoved",
         });
+
+        this.log.info(`Project removed: ${event}`)
         break;
     }
   }

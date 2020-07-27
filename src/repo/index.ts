@@ -20,7 +20,9 @@ const getRepoParser = async (workspaceRoot: string, log: Log, pathToJest: string
     repoParsers.map(async p => ({ parser: p, match: await p.isMatch() })),
   ).then(x => x.filter(z => z.match).map(z => z.parser));
 
-  return matchingParsers[0] ?? null;
+  const parser = matchingParsers[0] ?? null;
+  log.info(`Selected parser: ${parser.type}`)
+  return parser;
 };
 
 export { ProjectConfig, RepoParser, getRepoParser };

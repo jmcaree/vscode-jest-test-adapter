@@ -44,6 +44,8 @@ export default class JestTestAdapter implements TestAdapter {
   ) {
     this.jestManager = new JestManager();
 
+    this.log.info(`Created adapter for workspace: ${workspace.uri.fsPath} with options: ${JSON.stringify(options)}`)
+
     this.disposables.push(this.testsEmitter);
     this.disposables.push(this.testStatesEmitter);
     this.disposables.push(this.retireEmitter);
