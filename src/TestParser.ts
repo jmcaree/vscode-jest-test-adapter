@@ -5,8 +5,9 @@ import * as mm from "micromatch";
 import * as path from "path";
 import * as vscode from "vscode";
 import { Log } from "vscode-test-adapter-util";
+import { lowerCaseDriveLetter } from "./helpers/mapAssertionResultToTestId";
 import { cancellationTokenNone, Matcher, TestFileParseResult } from "./types";
-import { convertErrorToString } from './utils';
+import { convertErrorToString } from "./utils";
 
 /**
  * Glob patterns to globally ignore when searching for tests.
@@ -172,14 +173,30 @@ class TestParser {
  * @param settings The Jest settings.
  */
 const createMatcher = (settings: JestSettings): Matcher => {
-  // TODO what to do if there is more than one config?...
+  return value => {
+    return settings.configs.some(c => {
+      // first check if there are any ignored paths.
+      const isIgnored = c.testPathIgnorePatterns
+        ?.map(lowerCaseDriveLetter)
+        ?.some(p => {
+          const matches = value.match(p);
+          return matches && matches.length > 0;
+        });
 
-  if (settings?.configs?.length > 0 && settings.configs[0].testRegex?.length > 0) {
-    const regex = new RegExp(settings.configs[0].testRegex[0], process.platform === "win32" ? "i" : undefined);
-    return value => regex.test(value);
-  } else {
-    return value => mm.any(value, settings.configs[0].testMatch, { nocase: process.platform === "win32" });
-  }
+      if (isIgnored) {
+        return false;
+      }
+
+      if (c.testRegex?.length > 0) {
+        return c.testRegex.some(r => {
+          const regex = new RegExp(r, process.platform === "win32" ? "i" : undefined);
+          return regex.test(value);
+        });
+      }
+
+      return mm.any(value, c.testMatch, { nocase: process.platform === "win32" });
+    });
+  };
 };
 
 export { TestParser as default, createMatcher };
