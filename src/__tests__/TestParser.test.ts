@@ -14,9 +14,7 @@ const getTestMatchData = (): Array<[string, string, boolean]> => {
       ["C:\\testfile.test.js", "C:/**/*.test.js", true],
     ];
   }
-  return [
-    ["/folder/app.test.js", "**/*.test.js", true]
-  ];
+  return [["/folder/app.test.js", "**/*.test.js", true]];
 };
 
 const getTestRegexData = (): Array<[string, string, boolean]> => {
@@ -29,9 +27,7 @@ const getTestRegexData = (): Array<[string, string, boolean]> => {
       ["C:\\testfile.test.js", "C:\\\\.*\\.test\\.[tj]sx?", true],
     ];
   }
-  return [
-    ["/folder/app.test.js", ".*/.*\\.test\\.[tj]sx?", true]
-  ];
+  return [["/folder/app.test.js", ".*/.*\\.test\\.[tj]sx?", true]];
 };
 
 describe("Matcher tests", () => {
@@ -48,6 +44,43 @@ describe("Matcher tests", () => {
     (filePath, regex, expectedToMatch) => {
       const matcher = createMatcher(createConfig({ testRegex: [regex] }));
       expect(matcher(filePath)).toBe(expectedToMatch);
+    },
+  );
+
+  test.each`
+    ignorePattern                         | filePath                          | expectedResult
+    ${"test"}                             | ${"c:\\folder\\testfile.test.js"} | ${false}
+    ${"file"}                             | ${"c:\\folder\\testfile.test.js"} | ${false}
+    ${"folder"}                           | ${"c:\\folder\\testfile.test.js"} | ${false}
+    ${"c:\\\\"}                           | ${"c:\\folder\\testfile.test.js"} | ${false}
+    ${"c:\\\\folder\\\\testfile.test.js"} | ${"c:\\folder\\testfile.test.js"} | ${false}
+    ${"c:\\\\folder"}                     | ${"c:\\folder\\testfile.test.js"} | ${false}
+    ${"c:\\\\another_folder"}             | ${"c:\\folder\\testfile.test.js"} | ${true}
+    ${"another_string"}                   | ${"c:\\folder\\testfile.test.js"} | ${true}
+  `(
+    `Given an ignore pattern of '$ignorePattern' and a file path of '$filePath'
+     When the matcher is invoked
+     Then the result is $expectedResult`,
+    ({
+      ignorePattern,
+      filePath,
+      expectedResult,
+    }: {
+      ignorePattern: string;
+      filePath: string;
+      expectedResult: boolean;
+    }) => {
+      const config = createConfig({ testRegex: [".*.js$"] });
+      config.configs[0].rootDir = "c:\\";
+
+      // run the matcher before to confirm that it works without the ignore pattern.
+      let matcher = createMatcher(config);
+      expect(matcher(filePath)).toBe(true);
+
+      // now include the ignore pattern.
+      config.configs[0].testPathIgnorePatterns = [ignorePattern];
+      matcher = createMatcher(config);
+      expect(matcher(filePath)).toBe(expectedResult);
     },
   );
 });
