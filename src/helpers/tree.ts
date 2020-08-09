@@ -79,6 +79,14 @@ export interface NodeVisitor {
   visitTestNode: (test: TestNode) => void;
 }
 
+export const isProjectRootNode = (node: { type: string }): node is ProjectRootNode => {
+  return node.type === "projectRootNode";
+}
+
+export const isFolderNode = (node: { type: string }): node is FolderNode => {
+  return node.type === "folder";
+}
+
 export const createWorkspaceRootNode = (): WorkspaceRootNode => {
   return {
     id: "root",

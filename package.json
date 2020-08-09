@@ -127,6 +127,13 @@
           "type": "boolean",
           "default": true
         },
+        "jestTestExplorer.flattenExplorer": {
+          "description": "When true, tests in the Test Explorer will be grouped only by `describe` labels instead of file/folder structure.",
+          "scope": "resource",
+          "title": "Flatten Tests in Explorer",
+          "type": "boolean",
+          "default": false
+        },
         "jestTestExplorer.featureToggles": {
           "description": "A list of feature toggles to enable experimental features.",
           "scope": "window",

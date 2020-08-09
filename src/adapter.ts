@@ -4,19 +4,22 @@ import {
   RetireEvent,
   TestAdapter,
   TestEvent,
+  TestInfo,
   TestLoadFinishedEvent,
   TestLoadStartedEvent,
   TestRunFinishedEvent,
   TestRunStartedEvent,
   TestSuiteEvent,
+  TestSuiteInfo,
 } from "vscode-test-adapter-api";
 import { Log } from "vscode-test-adapter-util";
+import { EXTENSION_CONFIGURATION_NAME } from './constants';
 import { emitTestCompleteRootNode, emitTestRunningRootNode } from "./helpers/emitTestCompleteRootNode";
 import { filterTree } from "./helpers/filterTree";
 import { mapIdToString, mapStringToId } from "./helpers/idMaps";
 import { mapJestTestResultsToTestEvents } from "./helpers/mapJestTestResultsToTestEvents";
 import { mapTestIdsToTestFilter } from "./helpers/mapTestIdsToTestFilter";
-import { mapWorkspaceRootToSuite } from "./helpers/mapTreeToSuite";
+import { flatMapWorkspaceRootToSuite, mapWorkspaceRootToSuite } from "./helpers/mapTreeToSuite";
 import mergeRuntimeResults from "./helpers/mergeRuntimeResults";
 import { createWorkspaceRootNode, ProjectRootNode, WorkspaceRootNode } from "./helpers/tree";
 import JestManager, { JestTestAdapterOptions } from "./JestManager";
@@ -88,7 +91,17 @@ export default class JestTestAdapter implements TestAdapter {
 
       const state = await this.projectManager.getTestState();
       this.tree = state.suite;
-      const suite = mapWorkspaceRootToSuite(this.tree);
+
+      const flattenExplorer = vscode.workspace
+        .getConfiguration(EXTENSION_CONFIGURATION_NAME, null)
+        .get<boolean>("flattenExplorer", false);
+
+      const suite = flattenExplorer
+        ? flatMapWorkspaceRootToSuite(this.tree)
+        : mapWorkspaceRootToSuite(this.tree);
+
+      this.log.info("Results:");
+      this.logSuite(suite);
 
       this.testsEmitter.fire({ suite, type: "finished" });
     } catch (error) {
@@ -261,5 +274,28 @@ export default class JestTestAdapter implements TestAdapter {
    */
   private retireAllTests() {
     this.retireEmitter.fire({});
+  }
+
+  private logSuite(suiteOrTest?: TestSuiteInfo|TestInfo, depth: number = 0): void {
+    if (suiteOrTest == null) { return; }
+
+    const indent = (inDepth: number): string => {
+      let spaces = "";
+      for (let i = 0; i < inDepth; i++) {
+        spaces += "  ";
+      }
+      return spaces;
+    };
+
+    if (suiteOrTest.label) {
+      this.log.info(`${indent(depth)}${suiteOrTest.label} (${suiteOrTest.type})`);
+    }
+
+    const suite = suiteOrTest as TestSuiteInfo;
+    if (suite.children) {
+      for (const child of suite.children) {
+        this.logSuite(child, depth + 1);
+      }
+    }
   }
 }
