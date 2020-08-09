@@ -48,11 +48,10 @@ const flatMapWorkspaceRootToSuite = ({ projects, id, label }: WorkspaceRootNode)
 
   const suite = projects.reduce<TestSuiteInfo>((results, project) => {
     const describeBlocks = findDescribeBlocksInNode(project);
+    const existingChildren = results.children;
+    const children = existingChildren.concat(describeBlocks.map(mapDescribeBlockToTestSuite));
 
-    return {
-      ...results,
-      children: describeBlocks.map(mapDescribeBlockToTestSuite),
-    }
+    return { ...results, children };
   }, {
     children: [],
     id,
