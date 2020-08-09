@@ -47,9 +47,14 @@ const flatMapWorkspaceRootToSuite = ({ projects, id, label }: WorkspaceRootNode)
   }
 
   const suite = projects.reduce<TestSuiteInfo>((results, project) => {
+    // Get an array of only the describe blocks in the current project.
     const describeBlocks = findDescribeBlocksInNode(project);
-    const existingChildren = results.children;
-    const children = existingChildren.concat(describeBlocks.map(mapDescribeBlockToTestSuite));
+
+    // Map the describe blocks to a tree of suites, nested suites, and tests.
+    const currentChildren = describeBlocks.map(mapDescribeBlockToTestSuite);
+
+    // Merge this project's suites into the results.
+    const children = results.children.concat(currentChildren);
 
     return { ...results, children };
   }, {
@@ -58,6 +63,11 @@ const flatMapWorkspaceRootToSuite = ({ projects, id, label }: WorkspaceRootNode)
     label,
     type: "suite",
   });
+
+  // If the final children array is empty, return undefined to prevent the empty project from appearing in the list.
+  if (!suite.children.length) {
+    return undefined;
+  }
 
   return suite;
 };
