@@ -284,7 +284,7 @@ export default class JestTestAdapter implements TestAdapter {
   }
 
   private logSuite(suiteOrTest?: TestSuiteInfo|TestInfo, depth: number = 0): void {
-    if (suiteOrTest == null) { return; }
+    if (_.isNil(suiteOrTest)) { return; }
 
     const indent = (inDepth: number): string => Array(inDepth).fill("  ").join("");
 
