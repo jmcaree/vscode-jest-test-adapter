@@ -7,6 +7,8 @@ import {
   FileNode,
   FileWithParseErrorNode,
   FolderNode,
+  isFolderNode,
+  isProjectRootNode,
   ProjectRootNode,
   TestNode,
   WorkspaceRootNode,
@@ -37,6 +39,57 @@ const mapWorkspaceRootToSuite = (rootNode: WorkspaceRootNode): TestSuiteInfo | u
     label: rootNode.label,
     type: "suite",
   };
+};
+
+const flatMapWorkspaceRootToSuite = ({ projects, id, label }: WorkspaceRootNode): TestSuiteInfo | undefined => {
+  if (!projects.length) {
+    return undefined;
+  }
+
+  const suite = projects.reduce<TestSuiteInfo>((results, project) => {
+    // Get an array of only the describe blocks in the current project.
+    const describeBlocks = findDescribeBlocksInNode(project);
+
+    // Map the describe blocks to a tree of suites, nested suites, and tests.
+    const currentChildren = describeBlocks.map(mapDescribeBlockToTestSuite);
+
+    // Merge this project's suites into the results.
+    const children = results.children.concat(currentChildren);
+
+    return { ...results, children };
+  }, {
+    children: [],
+    id,
+    label,
+    type: "suite",
+  });
+
+  // If the final children array is empty, return undefined to prevent the empty project from appearing in the list.
+  if (suite.children.length === 0) {
+    return undefined;
+  }
+
+  return suite;
+};
+
+/**
+ * Recursively performs a deep search of the given node, returning a flat array of DescribeNodes
+ *
+ * @param node The node to begin searching
+ * @param results Accumulated results so far (only relevant for recursive iterations)
+ */
+const findDescribeBlocksInNode = (
+  node: ProjectRootNode | FolderNode | FileNode | FileWithParseErrorNode,
+  results: DescribeNode[] = [],
+): DescribeNode[] => {
+  if (isProjectRootNode(node) || isFolderNode(node)) {
+    const describesInFolders = _.flatMap(node.folders, (folder) => findDescribeBlocksInNode(folder, results));
+    const describesInFiles = _.flatMap(node.files, (file) => findDescribeBlocksInNode(file, results));
+
+    return describesInFolders.concat(describesInFiles).concat(results);
+  } else {
+    return node.describeBlocks.concat(results);
+  }
 };
 
 const shouldHideEmptyProjects = () =>
@@ -100,4 +153,4 @@ const mapTestToTestInfo = (test: TestNode): TestInfo => ({
   type: "test",
 });
 
-export { mapWorkspaceRootToSuite, mapFileNodeToTestSuite, mapDescribeBlockToTestSuite, mapTestToTestInfo };
+export { mapWorkspaceRootToSuite, mapFileNodeToTestSuite, mapDescribeBlockToTestSuite, mapTestToTestInfo, flatMapWorkspaceRootToSuite };
