@@ -65,7 +65,7 @@ const flatMapWorkspaceRootToSuite = ({ projects, id, label }: WorkspaceRootNode)
   });
 
   // If the final children array is empty, return undefined to prevent the empty project from appearing in the list.
-  if (!suite.children.length) {
+  if (suite.children.length === 0) {
     return undefined;
   }
 

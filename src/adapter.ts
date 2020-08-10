@@ -279,20 +279,14 @@ export default class JestTestAdapter implements TestAdapter {
   private logSuite(suiteOrTest?: TestSuiteInfo|TestInfo, depth: number = 0): void {
     if (suiteOrTest == null) { return; }
 
-    const indent = (inDepth: number): string => {
-      let spaces = "";
-      for (let i = 0; i < inDepth; i++) {
-        spaces += "  ";
-      }
-      return spaces;
-    };
+    const indent = (inDepth: number): string => Array(inDepth).fill("  ").join("");
 
     if (suiteOrTest.label) {
       this.log.info(`${indent(depth)}${suiteOrTest.label} (${suiteOrTest.type})`);
     }
 
     const suite = suiteOrTest as TestSuiteInfo;
-    if (suite.children) {
+    if (suite.children?.length > 0) {
       for (const child of suite.children) {
         this.logSuite(child, depth + 1);
       }
