@@ -234,7 +234,14 @@ export default class JestTestAdapter implements TestAdapter {
       this.testsEmitter.fire({ type: "started" });
 
       this.tree = event.suite;
-      const suite = mapWorkspaceRootToSuite(this.tree);
+
+      const flattenExplorer = vscode.workspace
+        .getConfiguration(EXTENSION_CONFIGURATION_NAME, null)
+        .get<boolean>("flattenExplorer", false);
+
+      const suite = flattenExplorer
+        ? flatMapWorkspaceRootToSuite(this.tree)
+        : mapWorkspaceRootToSuite(this.tree);
 
       switch (event.type) {
         case "projectAdded":
