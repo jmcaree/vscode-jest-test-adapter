@@ -163,9 +163,12 @@ export default class JestTestAdapter implements TestAdapter {
       cwd: "${workspaceFolder}",
       internalConsoleOptions: "neverOpen",
       name: "vscode-jest-test-adapter",
-      program: "${workspaceFolder}/node_modules/jest/bin/jest",
       request: "launch",
       type: "node",
+      runtimeExecutable: "${workspaceFolder}/node_modules/.bin/jest",
+      windows: {
+        runtimeExecutable: "${workspaceFolder}/node_modules/.bin/jest.cmd"
+      },
     };
 
     await vscode.debug.startDebugging(this.workspace, debugConfiguration);
