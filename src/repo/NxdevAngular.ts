@@ -9,7 +9,7 @@ interface NxAngular {
       builder: string;
       options: {
         jestConfig: string;
-        tsConfig: string;
+        tsConfig?: string;
         setupFile?: string;
       };
     };
@@ -39,7 +39,7 @@ class NxdevAngular extends NxdevBase<NxAngular> implements RepoParser {
       projectName,
       rootPath: path.resolve(this.workspaceRoot, path.dirname(options.jestConfig)),
       setupFile: options.setupFile && path.resolve(this.workspaceRoot, options.setupFile),
-      tsConfig: path.resolve(this.workspaceRoot, options.tsConfig),
+      tsConfig: options.tsConfig && path.resolve(this.workspaceRoot, options.tsConfig),
     };
   };
 }
