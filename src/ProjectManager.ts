@@ -29,26 +29,14 @@ class ProjectManager {
   }
 
   public async getTestState(): Promise<WorkspaceTestState> {
-    const jestPath = this.options.pathToJest(this.workspace);
-
+    await this.ensureInitialised();
     if (!this.repoParser) {
-      this.repoParser = await getRepoParser(this.workspace.uri.fsPath, this.log, jestPath);
-      if (this.repoParser) {
-        this.disposables.push(this.repoParser.projectChange(this.handleProjectChange));
-      } else {
-        // we return the default WorkspaceRootNode in the case we don't find a valid RepoParser.
-        this.log.info(`No RepoParser available for project: ${this.workspace.uri.fsPath}`);
-        return { suite: this.workspaceTestState };
-      }
+      // we return the default WorkspaceRootNode in the case we don't find a valid RepoParser.
+      this.log.info(`No RepoParser available for project: ${this.workspace.uri.fsPath}`);
+      return { suite: this.workspaceTestState };
     }
 
-    // TODO do we need to force load this?
-    const projects = await this.repoParser.getProjects();
-    const promises = projects.map(async p => {
-      const testLoader = await this.addNewTestLoader(p, jestPath);
-      return testLoader.getTestState(true);
-    });
-
+    const promises = this.testLoaders.map(t => t.getTestState(true));
     const testStates = await Promise.all(promises);
 
     this.workspaceTestState = {
@@ -88,7 +76,7 @@ class ProjectManager {
           type: "projectAppUpdated",
         });
 
-        this.log.info(`Application file changed: ${JSON.stringify(event)}`)
+        this.log.info(`Application file changed: ${JSON.stringify(event)}`);
         break;
 
       case "Test":
@@ -105,8 +93,27 @@ class ProjectManager {
           type: "projectTestsUpdated",
         });
 
-        this.log.info(`Test file changed: ${JSON.stringify(event)}`)
+        this.log.info(`Test file changed: ${JSON.stringify(event)}`);
         break;
+    }
+  }
+
+  private async ensureInitialised() {
+    const jestPath = this.options.pathToJest(this.workspace);
+
+    if (!this.repoParser) {
+      this.repoParser = await getRepoParser(this.workspace.uri.fsPath, this.log, jestPath);
+      
+      if (this.repoParser) {
+        this.disposables.push(this.repoParser.projectChange(this.handleProjectChange));
+
+        // register the test loaders for each project.
+        const projects = await this.repoParser.getProjects();
+        const createLoaderPromises = projects.map(async p => {
+          await this.addNewTestLoader(p, jestPath);
+        });
+        await Promise.all(createLoaderPromises);
+      }
     }
   }
 
@@ -131,7 +138,7 @@ class ProjectManager {
           type: "projectAdded",
         });
 
-        this.log.info(`New project added: ${event.config} ${newProject}`)
+        this.log.info(`New project added: ${event.config} ${newProject}`);
         break;
 
       case "removed":
@@ -145,7 +152,7 @@ class ProjectManager {
           type: "projectRemoved",
         });
 
-        this.log.info(`Project removed: ${event}`)
+        this.log.info(`Project removed: ${event}`);
         break;
     }
   }
