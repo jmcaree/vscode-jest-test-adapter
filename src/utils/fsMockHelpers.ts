@@ -1,6 +1,6 @@
 import  fs  from "fs";
 
-const resetFileSystem = () => (fs as any).vol.reset();
+const resetFileSystem: () => void = () => (fs as any).vol.reset();
 
 const createFileSystem = (fileSystem: any) => {
   for (const key in fileSystem) {

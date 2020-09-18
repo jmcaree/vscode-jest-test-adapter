@@ -1,14 +1,8 @@
-import fs from "fs";
-import path from "path";
-import util from "util";
 import { Log } from "vscode-test-adapter-util";
 import { getJestConfigInDirectory } from "../utils";
 import { getProjectName, getTsConfig } from "./repoHelpers";
 import RepoParserBase from "./RepoParserBase";
 import { ProjectConfig, RepoParser } from "./types";
-
-// the following requires Node 8 minimum.
-const exists = util.promisify(fs.exists);
 
 class StandardParser extends RepoParserBase implements RepoParser {
   public type = "default";

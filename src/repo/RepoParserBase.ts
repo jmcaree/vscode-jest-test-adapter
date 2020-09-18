@@ -7,7 +7,6 @@ import { Log } from "vscode-test-adapter-util";
 import { RepoParser } from ".";
 
 // the following requires Node 8 minimum.
-export const exists = util.promisify(fs.exists);
 export const readFile = util.promisify(fs.readFile);
 
 export default class RepoParserBase implements Pick<RepoParser, "projectChange"> {
@@ -35,11 +34,12 @@ export default class RepoParserBase implements Pick<RepoParser, "projectChange">
   protected async getPackageFile(workspaceRoot: string): Promise<JSONSchemaForNPMPackageJsonFiles | null> {
     const packageJsonPath = path.resolve(workspaceRoot, "package.json");
 
-    if ((await exists(packageJsonPath)) === false) {
+    try {
+      const contents = await readFile(packageJsonPath);
+      return JSON.parse(contents.toString()) as JSONSchemaForNPMPackageJsonFiles;
+    } catch (error) {
+      // often this will be because the file doesn't exist although other file access issues could happen.
       return null;
     }
-
-    const buffer = readFile(packageJsonPath);
-    return JSON.parse((await buffer).toString()) as JSONSchemaForNPMPackageJsonFiles;
   }
 }

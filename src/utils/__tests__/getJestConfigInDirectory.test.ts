@@ -1,5 +1,5 @@
 import { getJestConfigInDirectory } from "..";
-import { createFileSystem, resetFileSystem } from "./testHelper";
+import { createFileSystem, resetFileSystem } from "../fsMockHelpers";
 
 // core node modules need explicit mocking.
 jest.mock("fs");
