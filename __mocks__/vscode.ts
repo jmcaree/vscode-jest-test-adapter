@@ -1,17 +1,10 @@
+import { Disposable, EventEmitter } from "vscode";
+
 const languages = {
-  createDiagnosticCollection: jest.fn()
+  createDiagnosticCollection: jest.fn(),
 };
 
 const StatusBarAlignment = {};
-
-// const window = {
-//   createStatusBarItem: jest.fn(() => ({
-//     show: jest.fn()
-//   })),
-//   createTextEditorDecorationType: jest.fn(),
-//   showErrorMessage: jest.fn(),
-//   showWarningMessage: jest.fn(),
-// };
 
 const workspace = {
   getConfiguration: jest.fn(),
@@ -20,36 +13,54 @@ const workspace = {
 };
 
 const OverviewRulerLane = {
-  Left: null
+  Left: null,
 };
 
 const Uri = {
   file: (f: any) => f,
-  parse: jest.fn()
+  parse: jest.fn(),
 };
-// const Range = jest.fn();
+
 const Diagnostic = jest.fn();
 const DiagnosticSeverity = { Error: 0, Warning: 1, Information: 2, Hint: 3 };
 
 const debug = {
   onDidTerminateDebugSession: jest.fn(),
-  startDebugging: jest.fn()
+  startDebugging: jest.fn(),
 };
 
 const commands = {
-  executeCommand: jest.fn()
+  executeCommand: jest.fn(),
 };
 
-// type CancellationToken = {}
-
 const CancellationTokenSource = jest.fn().mockImplementation(() => ({
-  token: {}
+  token: {},
 }));
+
+function eventEmitter<T>(): EventEmitter<T> {
+  const subscribers: Array<(e: T) => any> = [];
+
+  return {
+    dispose: jest.fn(() => {}),
+    event: jest.fn((listener: (e: T) => any, thisArgs?: any, disposables?: Disposable[]) => {
+      subscribers.push(listener);
+      return {
+        dispose: jest.fn(() => {}),
+      };
+    }),
+    fire: (data: T) => {
+      subscribers.forEach(s => s(data));
+    },
+  };
+}
+
+const EventEmitterImpl = jest.fn(eventEmitter);
 
 module.exports = {
   CancellationTokenSource,
   Diagnostic,
   DiagnosticSeverity,
+  EventEmitter: EventEmitterImpl,
   OverviewRulerLane,
   // Range,
   StatusBarAlignment,
