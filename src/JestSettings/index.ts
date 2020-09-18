@@ -7,8 +7,26 @@ import {
 } from "jest-editor-support";
 import { ProjectConfig } from "../repo";
 
-const getSettings = (projectConfig: ProjectConfig): Promise<JestSettings> => {
-  return editorSupportGetSettings(convertToWorkspace(projectConfig));
+const getSettings = async (projectConfig: ProjectConfig): Promise<JestSettings> => {
+  const rawEditorSettings = await editorSupportGetSettings(convertToWorkspace(projectConfig));
+
+  // modern Jest should return us `testRegex` values that are string[], but we just fix up anything that comes through
+  // as a single string.
+  const configs = rawEditorSettings.configs.map(c => {
+    if (isString(c.testRegex)) {
+      return ({...c, testRegex: [c.testRegex as string]});
+    }
+    return c;
+  });
+
+  return {
+    ...rawEditorSettings,
+    configs,
+  };
+};
+
+const isString = (value: any): value is string => {
+  return typeof value === "string" || value instanceof String;
 };
 
 const createRunner = (projectConfig: ProjectConfig, options: Options) => {
