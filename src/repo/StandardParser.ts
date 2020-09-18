@@ -34,16 +34,16 @@ class StandardParser extends RepoParserBase implements RepoParser {
     ]);
   }
 
-  public isMatch() {
-    return isStandard(this.workspaceRoot);
+  public async isMatch(): Promise<boolean> {
+    const packageFile = await this.getPackageFile(this.workspaceRoot);
+
+    return (
+      packageFile?.dependencies?.jest !== undefined ||
+      packageFile?.devDependencies?.jest !== undefined ||
+      packageFile?.peerDependencies?.jest !== undefined ||
+      packageFile?.optionalDependencies?.jest !== undefined
+    );
   }
 }
-
-const isStandard = async (workspaceRoot: string): Promise<boolean> => {
-  const packageJsonPath = path.resolve(workspaceRoot, "package.json");
-  // TODO we should also check that the jest package is installed, or that we are using a globally installed one.
-  // Otherwise, this may not be a Jest project.
-  return await exists(packageJsonPath);
-};
 
 export { StandardParser };

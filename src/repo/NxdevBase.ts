@@ -72,23 +72,18 @@ abstract class NxdevBase<T> extends RepoParserBase implements RepoParser {
 
     const nxCommandFeatureToggleEnabled = _.some(featureToggles, EXPERIMENTAL_NX_CLI_FEATURE_TOGGLE);
 
-    const nxVersion = await getNxVersion(this.workspaceRoot);
+    const packageFile = await this.getPackageFile(this.workspaceRoot);
 
-    this.useExperimentalCli = nxCommandFeatureToggleEnabled && gt(nxVersion, "9.2.4");
+    if (!packageFile) {
+      this.useExperimentalCli = false;
+    } else {
+      const nxVersion = await getNxVersion(packageFile);
+      this.useExperimentalCli = nxCommandFeatureToggleEnabled && gt(nxVersion, "9.2.4");
+    }
   }
 }
 
-const getNxVersion = async (workspaceRoot: string) => {
-  const packageJsonPath = path.resolve(workspaceRoot, "package.json");
-
-  if (await exists(packageJsonPath) === false) {
-    // just return a dummy version if we don't know where the package.json file is located.
-    return "0.0.0";
-  }
-
-  const buffer = readFile(packageJsonPath);
-  const packageJson = JSON.parse((await buffer).toString()) as JSONSchemaForNPMPackageJsonFiles;
-
+const getNxVersion = async (packageJson: JSONSchemaForNPMPackageJsonFiles) => {
   let nxVersion;
 
   if (packageJson.dependencies) {
