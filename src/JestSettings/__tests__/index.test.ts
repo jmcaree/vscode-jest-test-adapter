@@ -37,18 +37,11 @@ describe("getSettings tests", () => {
 });
 
 const compareConfigsExcludingTestRegex = (actual: JestSettings, expected: JestSettings) => {
+  // excluding the testRegex key, the rest of the config should be the same.
   const actualEntries = Object.entries(actual.configs[0]).filter(([key]) => key !== "testRegex");
   const expectedEntries = Object.entries(expected.configs[0]).filter(([key]) => key !== "testRegex");
 
-  expect(actualEntries).toHaveLength(expectedEntries.length);
-
-  for (let i = 0; i < actualEntries.length; i++) {
-    const a = actualEntries[i];
-    const b = expectedEntries[i];
-
-    expect(a[0]).toBe(b[0]);
-    expect(a[1]).toStrictEqual(b[1]);
-  }
+  expect(actualEntries).toIncludeSameMembers(expectedEntries)
 };
 
 const createConfigWithTestRegex = (testRegex: string[] | string): JestSettings => {

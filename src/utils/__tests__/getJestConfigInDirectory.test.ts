@@ -19,8 +19,8 @@ test.each(["jest.config.js", ".jestrc", ".jestrc.json"])(
 
     const jestConfig = await getJestConfigInDirectory("/");
 
-    expect(jestConfig).toBeTruthy();
-    expect(jestConfig!.endsWith(jestConfigFileName)).toBe(true);
+    expect(jestConfig).not.toBeNil();
+    expect(jestConfig).toEndWith(jestConfigFileName);
   },
 );
 
@@ -37,8 +37,8 @@ test("Given a package.json file with a jest config node when calling getJestConf
 
   const jestConfig = await getJestConfigInDirectory("/");
 
-  expect(jestConfig).toBeTruthy();
-  expect(jestConfig!.endsWith("package.json")).toBe(true);
+  expect(jestConfig).not.toBeNil();
+  expect(jestConfig).toEndWith("package.json");
 });
 
 test("Given no valid Jest config files when calling getJestConfigInDirectory then null is returned.", async () => {
