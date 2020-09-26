@@ -1,6 +1,7 @@
 // tslint:disable: variable-name
 
-import { ProjectConfig, RepoParser } from "../types";
+import * as vscode from "vscode";
+import { ProjectChangeEvent, ProjectConfig, RepoParser } from "../types";
 
 let projects: ProjectConfig[] = [];
 
@@ -8,15 +9,33 @@ const __setProjects = (p: ProjectConfig[]) => {
   projects = p;
 };
 
+const eventEmitter = new vscode.EventEmitter<ProjectChangeEvent>();
+
 const mockRepoParser: RepoParser = {
   getProjects: jest.fn(async () => projects),
   isMatch: jest.fn().mockResolvedValue(true),
-  projectChange: jest.fn(() => ({
-    dispose: jest.fn(() => {})
-  })),
+  projectChange: eventEmitter.event,
   type: "mocked repo parser",
 };
 
 const getRepoParser = jest.fn().mockImplementation(() => mockRepoParser);
 
-export { getRepoParser, __setProjects };
+const __addProject = (p: ProjectConfig) => {
+  __setProjects([...projects, p]);
+
+  eventEmitter.fire({
+    config: p,
+    type: "added",
+  });
+};
+
+const __removeProject = (projectPath: string) => {
+  __setProjects(projects.filter(p => p.rootPath !== projectPath));
+
+  eventEmitter.fire({
+    rootPath: projectPath,
+    type: "removed",
+  });
+}
+
+export { getRepoParser, __addProject, __removeProject, __setProjects };

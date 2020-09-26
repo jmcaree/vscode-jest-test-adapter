@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
+import { ProjectRootNode } from "../helpers/tree";
 import { EnvironmentChangedEvent, ProjectTestState } from "../types";
 
-const projectTestState: ProjectTestState = {
+let projectTestState: ProjectTestState = {
   // @ts-ignore
   suite: {},
   testFiles: [],
@@ -13,12 +14,19 @@ const getTestStateMock: () => Promise<ProjectTestState> = jest.fn(
 const loaderMock = jest.fn(() => {
   const eventEmitter = new vscode.EventEmitter<EnvironmentChangedEvent>();
 
-  return ({
-    dispose: jest.fn(() => { }),
+  return {
+    dispose: jest.fn(() => {}),
     environmentChange: eventEmitter.event,
     fireEvent: eventEmitter.fire,
     getTestState: getTestStateMock,
-  });
+  };
 });
 
-export default loaderMock;
+const __setSuite = (s: ProjectRootNode) => {
+  projectTestState = {
+    suite: s,
+    testFiles: [],
+  };
+};
+
+export { loaderMock as default, __setSuite };

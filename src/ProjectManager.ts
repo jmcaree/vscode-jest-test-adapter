@@ -105,7 +105,7 @@ class ProjectManager {
       this.repoParser = await getRepoParser(this.workspace.uri.fsPath, this.log, jestPath);
       
       if (this.repoParser) {
-        this.disposables.push(this.repoParser.projectChange(this.handleProjectChange));
+        this.disposables.push(this.repoParser.projectChange(e => this.handleProjectChange(e)));
 
         // register the test loaders for each project.
         const projects = await this.repoParser.getProjects();
@@ -129,7 +129,7 @@ class ProjectManager {
           ...this.workspaceTestState,
           projects: this.workspaceTestState.projects
             .concat(newProject.suite)
-            .sort((a, b) => String.prototype.localeCompare(a.id, b.id)),
+            .sort((a, b) => a.id.localeCompare(b.id)),
         };
 
         this.projectsChangedEmitter.fire({

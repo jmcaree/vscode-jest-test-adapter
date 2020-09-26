@@ -1,9 +1,14 @@
 import { WorkspaceFolder } from "vscode";
 import * as vscode from "vscode";
 import { Log } from "vscode-test-adapter-util";
+import { ProjectRootNode } from "../helpers/tree";
 import { DebugOutput } from "../JestManager";
 import ProjectManager from "../ProjectManager";
 import {
+  // @ts-ignore
+  __addProject,
+  // @ts-ignore
+  __removeProject,
   // @ts-ignore
   __setProjects,
   getRepoParser,
@@ -11,8 +16,16 @@ import {
   RepoParser,
 } from "../repo";
 import { ProjectChangeEvent } from "../repo/types";
-import TestLoader from "../TestLoader";
-import { EnvironmentChangedEvent, ProjectsChangedEvent, ProjectTestsChangedEvent } from "../types";
+import TestLoader, {
+  // @ts-ignore
+  __setSuite,
+} from "../TestLoader";
+import {
+  ApplicationChangedEvent,
+  EnvironmentChangedEvent,
+  ProjectsChangedEvent,
+  ProjectTestsChangedEvent,
+} from "../types";
 
 jest.mock("../repo");
 jest.mock("../TestLoader");
@@ -105,7 +118,7 @@ describe("ProjectManager tests", () => {
     const pm = new ProjectManager(workspace, log, options);
     await pm.getTestState(); // this ensures registration has occurred.
     const callback = jest.fn<void, [ProjectsChangedEvent]>();
-    pm.projectsChanged(callback)
+    pm.projectsChanged(callback);
 
     // raise an event for a test file changing.
     const testLoader = (pm as any).testLoaders[0];
@@ -132,28 +145,120 @@ describe("ProjectManager tests", () => {
     } as ProjectTestsChangedEvent);
 
     expect(callback).toHaveBeenCalledTimes(1);
-    expect(callback.mock.calls[0][0].type).toBe("projectTestsUpdated")
+    expect(callback.mock.calls[0][0].type).toBe("projectTestsUpdated");
   });
 
-  test.todo(`Given a ProjectManager instance and a new project is added
-  when a project test file changes
-  then then a projectTestsUpdated event is raised`);
+  test(`Given a ProjectManager instance
+        when a new project is added
+        then then a projectAdded event is raised`, async () => {
+    setupProject();
+    const pm = new ProjectManager(workspace, log, options);
+    await pm.getTestState(); // this ensures registration has occurred.
+    const callback = jest.fn();
+    pm.projectsChanged(callback);
 
-  test.todo(`Given a ProjectManager instance
-  when a project app file changes
-  then a projectAppUpdated event is raised`);
+    await addSecondProject();
 
-  test.todo(`Given a ProjectManager instance and a new project is added
-  when a project app file changes
-  then then a projectAppUpdated event is raised`);
+    expect(callback).toHaveBeenCalledTimes(1);
+    expect(callback.mock.calls[0][0].type).toBe("projectAdded");
+  });
 
-  test.todo(`Given a ProjectManager instance
-  when a project is added
-  then a projectAdded event is raised`);
+  test(`Given a ProjectManager instance and a new project is added
+        when a project test file changes in the new project
+        then then a projectTestsUpdated event is raised`, async () => {
+    setupProject();
+    const pm = new ProjectManager(workspace, log, options);
+    await pm.getTestState(); // this ensures registration has occurred.
+    const callback = jest.fn();
+    pm.projectsChanged(callback);
 
-  test.todo(`Given a Project Manager isntance
-  when a project is removed
-  then a projectRemoved event is raised`);
+    await addSecondProject();
+
+    // raise an event for a test file changing.
+    const testLoader = (pm as any).testLoaders[0];
+    testLoader.fireEvent({
+      addedTestFiles: [],
+      invalidatedTestIds: [],
+      modifiedTestFiles: [],
+      removedTestFiles: [],
+      testFiles: [],
+      type: "Test",
+      updatedSuite: {
+        config: {
+          jestCommand: "",
+          jestExecutionDirectory: "",
+          projectName: "",
+          rootPath: "",
+        },
+        files: [],
+        folders: [],
+        id: "",
+        label: "",
+        type: "projectRootNode",
+      },
+    } as ProjectTestsChangedEvent);
+
+    expect(callback).toHaveBeenCalledTimes(2);
+    expect(callback.mock.calls[1][0].type).toBe("projectTestsUpdated");
+  });
+
+  test(`Given a ProjectManager instance
+        when a project app file changes
+        then a projectAppUpdated event is raised`, async () => {
+    setupProject();
+    const pm = new ProjectManager(workspace, log, options);
+    await pm.getTestState(); // this ensures registration has occurred.
+    const callback = jest.fn<void, [ProjectsChangedEvent]>();
+    pm.projectsChanged(callback);
+
+    // raise an event for a test file changing.
+    const testLoader = (pm as any).testLoaders[0];
+    testLoader.fireEvent({
+      invalidatedTestIds: ["root"],
+      type: "App",
+    } as ApplicationChangedEvent);
+
+    expect(callback).toHaveBeenCalledTimes(1);
+    expect(callback.mock.calls[0][0].type).toBe("projectAppUpdated");
+  });
+
+  test(`Given a ProjectManager instance and a new project is added
+        when a project app file changes
+        then then a projectAppUpdated event is raised`, async () => {
+    setupProject();
+    const pm = new ProjectManager(workspace, log, options);
+    await pm.getTestState(); // this ensures registration has occurred.
+    const callback = jest.fn();
+    pm.projectsChanged(callback);
+
+    await addSecondProject();
+
+    // raise an event for a test file changing.
+    const testLoader = (pm as any).testLoaders[0];
+    testLoader.fireEvent({
+      invalidatedTestIds: ["root"],
+      type: "App",
+    } as ApplicationChangedEvent);
+
+    expect(callback).toHaveBeenCalledTimes(2);
+    expect(callback.mock.calls[1][0].type).toBe("projectAppUpdated");
+  });
+
+  test(`Given a Project Manager isntance
+        when a project is removed
+        then a projectRemoved event is raised`, async () => {
+    setupProject();
+    const pm = new ProjectManager(workspace, log, options);
+    await pm.getTestState(); // this ensures registration has occurred.
+    const callback = jest.fn();
+    pm.projectsChanged(callback);
+
+    await removeProject("/path0");
+
+    // assert that the callback has been called
+    expect(callback).toHaveBeenCalledTimes(1);
+    expect(callback.mock.calls[0][0].type).toBe("projectRemoved");
+  });
 });
 
 const getParser = async (): Promise<RepoParser> => {
@@ -163,15 +268,44 @@ const getParser = async (): Promise<RepoParser> => {
 };
 
 const setupProject = () => {
-  const projects: ProjectConfig[] = [
-    {
-      jestCommand: "",
-      jestConfig: "",
-      jestExecutionDirectory: "",
-      projectName: "mock project",
-      rootPath: "",
-      tsConfig: "",
-    },
-  ];
-  __setProjects(projects);
+  const projectConfig = {
+    jestCommand: "",
+    jestConfig: "",
+    jestExecutionDirectory: "",
+    projectName: "mock project",
+    rootPath: "/path0",
+    tsConfig: "",
+  };
+  __setProjects([projectConfig]);
+
+  const suite: ProjectRootNode = {
+    config: projectConfig,
+    files: [],
+    folders: [],
+    id: "my suite",
+    label: "my suite",
+    type: "projectRootNode",
+  };
+  __setSuite(suite);
+};
+
+const addSecondProject = async () => {
+  const addedProject: ProjectConfig = {
+    jestCommand: "",
+    jestConfig: "",
+    jestExecutionDirectory: "",
+    projectName: "added mock project",
+    rootPath: "/path1",
+    tsConfig: "",
+  };
+
+  __addProject(addedProject);
+
+  await new Promise(r => setTimeout(r, 1));
+};
+
+const removeProject = async (projectPath: string) => {
+  __removeProject(projectPath);
+
+  await new Promise(r => setTimeout(r, 1));
 };
