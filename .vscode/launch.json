@@ -2,16 +2,20 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Debug unit tests",
+      "request": "launch",
+      "runtimeArgs": ["run", "test-watch"],
+      "runtimeExecutable": "npm",
+      "skipFiles": ["<node_internals>/**"],
+      "type": "pwa-node"
+    },
+    {
       "type": "extensionHost",
       "request": "launch",
       "name": "Jest Test adapter",
       "runtimeExecutable": "${execPath}",
-      "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}"
-      ],
-      "outFiles": [
-        "${workspaceFolder}/dist/**/*.js"
-      ],
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
       "preLaunchTask": "npm",
       "smartStep": true
     }
